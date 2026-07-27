@@ -134,8 +134,8 @@
   <nav>
     <button id="navAdmin" class="active">Crear campaña</button>
     <button id="navList">Mis campañas</button>
-    <button id="navAdminPanel" style="background:rgba(0,0,0,.18);">⚙️ Panel admin</button>
     <button id="navHelp" style="background:rgba(255,255,255,.12);">❓ Cómo funciona</button>
+    <button id="navAdminPanel" style="background:transparent;border-color:rgba(255,255,255,.25);opacity:.7;font-size:11px;padding:6px 12px;">⚙️ admin</button>
   </nav>
 </div>
 
@@ -205,7 +205,8 @@ async function loadIdentity(){
 }
 async function saveIdentity(name){
   me = {creatorId: 'u_'+slugify(name), name};
-  await window.storage.set('identity', JSON.stringify(me));
+  try{ await window.storage.set('identity', JSON.stringify(me)); }
+  catch(e){ /* si no se puede guardar, seguimos igual con la sesión actual */ }
 }
 function renderIdentityGate(){
   const app = document.getElementById('app');
@@ -218,18 +219,23 @@ function renderIdentityGate(){
       <button class="cta" id="ideGo" style="width:100%;margin-top:14px;">Entrar</button>
     </div>
   `;
+  document.getElementById('ideName').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ideGo').click(); });
   document.getElementById('ideGo').onclick = async ()=>{
     const v = document.getElementById('ideName').value.trim();
     if(!v) return;
+    const btn = document.getElementById('ideGo');
+    btn.disabled = true; btn.textContent = 'Entrando...';
     await saveIdentity(v);
+    currentDraft = newDraft();
     location.hash = '#/';
-    boot();
+    route();
   };
 }
 function renderWhoBox(){
   document.getElementById('whoBox').innerHTML = `Hola, <b>${escapeHtml(me.name)}</b> · <a id="switchUser">cambiar</a>`;
   document.getElementById('switchUser').onclick = async ()=>{
-    await window.storage.delete('identity');
+    try{ await window.storage.delete('identity'); }
+    catch(e){ /* si falla el borrado, igual reseteamos la sesión local */ }
     me = null;
     renderIdentityGate();
   };
@@ -240,7 +246,7 @@ async function loadCampaigns(){
   try{ const res = await window.storage.get('campaigns', true); campaigns = res ? JSON.parse(res.value) : []; }
   catch(e){ campaigns = []; }
 }
-async function saveCampaigns(){ await window.storage.set('campaigns', JSON.stringify(campaigns), true); }
+async function saveCampaigns(){ try{ await window.storage.set('campaigns', JSON.stringify(campaigns), true); }catch(e){ /* si falla, seguimos con los datos en memoria de esta sesión */ } }
 
 function toDatetimeLocal(date){
   const pad = n=>String(n).padStart(2,'0');
@@ -268,11 +274,11 @@ function openHelp(){
 }
 document.getElementById('navHelp').onclick = openHelp;
 
-async function maybeShowFirstTimeHelp(){
-  try{
-    const res = await window.storage.get('sawIntro');
-    if(!res){ openHelp(); await window.storage.set('sawIntro', 'true'); }
-  }catch(e){ openHelp(); }
+let helpShownThisSession = false;
+function maybeShowFirstTimeHelp(){
+  if(helpShownThisSession) return;
+  helpShownThisSession = true;
+  openHelp();
 }
 
 function slugify(name){
@@ -283,11 +289,12 @@ function newDraft(){
   return {
     id: 'c_' + Date.now(), creatorId: me.creatorId, creatorName: me.name,
     name:'', slug:'', gameType:'roulette', rouletteMode:'prizes',
-    questions:[{id:'q1', label:'Nombre y apellido'}, {id:'q2', label:'Email'}],
+    questions:[{id:'q1', label:'Nombre y apellido'}],
     prizes:[{id:'p1', name:'', probability:0, stock:null}],
     continueProbability: 100, namesList: [],
     startAt:'', endAt:'', createdAt: Date.now(), participations: [],
-    notifyEmail: '', notified:false, notifiedAt:null, termsText: '', __templateApplied:false
+    notifyEmail: '', notified:false, notifiedAt:null, termsText: '', __templateApplied:false,
+    customWinMessage:'', customLoseMessage:''
   };
 }
 
@@ -586,6 +593,17 @@ function renderAdmin(){
       <div class="prob-msg ${totalOk?'prob-ok':'prob-bad'}">
         ${totalOk ? '✓ Listo, suma 100%' : `Los premios suman ${sumPrizes}% — no puede pasarse de 100%`}
       </div>
+
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--teal);">💬 Mensajes personalizados (opcional)</summary>
+        <div style="margin-top:10px;">
+          <p class="sub" style="font-size:12px;">Si no escribís nada, se usa el mensaje predeterminado.</p>
+          <label>Mensaje cuando gana un premio</label>
+          <textarea id="fWinMsg" placeholder="Guardá este resultado, pronto te contactamos 🎉">${escapeHtml(d.customWinMessage)}</textarea>
+          <label>Mensaje cuando no gana esta vez</label>
+          <textarea id="fLoseMsg" placeholder="La próxima promo puede ser la tuya ✈️">${escapeHtml(d.customLoseMessage)}</textarea>
+        </div>
+      </details>
     </div>`}
 
     <div class="card">
@@ -611,6 +629,15 @@ function renderAdmin(){
       <button class="cta ghost" id="previewBtn" type="button">👀 Probar cómo lo ve el participante</button>
       <span id="savedFlash" style="font-size:13px;color:var(--teal);font-weight:600;"></span>
     </div>
+    ${(()=>{
+      const missing = [];
+      if(!d.name) missing.push('el nombre de la campaña');
+      if(!d.startAt || !d.endAt) missing.push('las fechas de inicio y fin');
+      if(!d.notifyEmail) missing.push('el email para recibir los datos (paso ' + (isNamesMode?'3':'4') + ')');
+      if(isNamesMode && !namesOk) missing.push('al menos un nombre en la lista');
+      if(!isNamesMode && !totalOk) missing.push(sumPrizes===0 ? 'cargar al menos un premio con % mayor a 0' : 'bajar el % de los premios (no puede superar 100%)');
+      return missing.length ? `<p style="color:var(--rosa);font-size:12.5px;font-weight:600;margin-top:8px;">Para poder publicar todavía falta: ${missing.join(', ')}.</p>` : '';
+    })()}
   `;
 
   if(!isNamesMode){ renderQuestions(); renderPrizes(); }
@@ -631,6 +658,10 @@ function renderAdmin(){
   const fNames = document.getElementById('fNames');
   if(fNames) fNames.oninput = e=>{d.namesList = e.target.value.split('\n'); refreshPublishState();};
   document.getElementById('fTerms').oninput = e=>{ d.termsText = e.target.value; };
+  const fWinMsg = document.getElementById('fWinMsg');
+  if(fWinMsg) fWinMsg.oninput = e=>{ d.customWinMessage = e.target.value; };
+  const fLoseMsg = document.getElementById('fLoseMsg');
+  if(fLoseMsg) fLoseMsg.oninput = e=>{ d.customLoseMessage = e.target.value; };
 
   document.querySelectorAll('.game-type').forEach(el=>{ el.onclick = ()=>{ d.gameType = el.dataset.type; renderAdmin(); }; });
   document.querySelectorAll('.mode-opt').forEach(el=>{ el.onclick = ()=>{ d.rouletteMode = el.dataset.mode; renderAdmin(); }; });
@@ -703,6 +734,8 @@ function renderPrizes(){
 }
 
 async function publishCampaign(){
+  const btn = document.getElementById('publishBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Publicando...'; }
   const d = currentDraft;
   d.slug = slugify(d.name);
   d.editToken = 'e_' + Math.random().toString(36).slice(2,10);
@@ -1035,13 +1068,15 @@ function finishParticipation(campaign, answers, result){
   campaign.participations.push({answers, result, at: Date.now()});
   saveCampaigns();
 }
-function showResult(zone, result){
+function showResult(zone, result, campaign){
   const box = document.createElement('div');
   box.className = 'result';
-  if(result.type==='prize') box.innerHTML = `<div style="font-size:13px;opacity:.85;">¡GANASTE!</div><h3>${escapeHtml(result.prize.name)}</h3><div style="font-size:13px;">Guardá este resultado, pronto te contactamos 🎉</div>`;
-  else if(result.type==='name') box.innerHTML = `<div style="font-size:13px;opacity:.85;">GANADOR/A</div><h3>${escapeHtml(result.name)}</h3><div style="font-size:13px;">🎉 ¡felicitaciones!</div>`;
+  const winMsg = (campaign?.customWinMessage||'').trim() || 'Guardá este resultado, pronto te contactamos 🎉';
+  const loseMsg = (campaign?.customLoseMessage||'').trim() || 'La próxima promo puede ser la tuya ✈️';
+  if(result.type==='prize') box.innerHTML = `<div style="font-size:13px;opacity:.85;">¡GANASTE!</div><h3>${escapeHtml(result.prize.name)}</h3><div style="font-size:13px;">${escapeHtml(winMsg)}</div>`;
+  else if(result.type==='name') box.innerHTML = `<div style="font-size:13px;opacity:.85;">GANADOR/A</div><h3>${escapeHtml(result.name)}</h3><div style="font-size:13px;">${escapeHtml(winMsg)}</div>`;
   else if(result.type==='empty') box.innerHTML = `<div style="font-size:13px;opacity:.85;">Sorteo</div><h3>Ya salieron todos</h3><div style="font-size:13px;">Reiniciá el sorteo desde el panel para volver a girar.</div>`;
-  else box.innerHTML = `<div style="font-size:13px;opacity:.85;">Por esta vez</div><h3>Seguí participando</h3><div style="font-size:13px;">La próxima promo puede ser la tuya ✈️</div>`;
+  else box.innerHTML = `<div style="font-size:13px;opacity:.85;">Por esta vez</div><h3>Seguí participando</h3><div style="font-size:13px;">${escapeHtml(loseMsg)}</div>`;
   zone.appendChild(box);
   if(result.type==='prize' || result.type==='name') launchConfetti();
 }
@@ -1100,7 +1135,7 @@ function renderRoulette(zone, campaign, answers){
       else{
         document.getElementById('stage').classList.add('land');
         finishParticipation(campaign, answers, result);
-        showResult(zone, result);
+        showResult(zone, result, campaign);
       }
     }
     requestAnimationFrame(animate);
@@ -1134,7 +1169,7 @@ function renderScratch(zone, campaign, answers){
       done = true;
       canvas.style.animation='none';
       finishParticipation(campaign, answers, result);
-      setTimeout(()=>{ ctx.clearRect(0,0,280,170); showResult(zone, result); },300);
+      setTimeout(()=>{ ctx.clearRect(0,0,280,170); showResult(zone, result, campaign); },300);
     }
   }
   canvas.addEventListener('mousedown', e=>{drawing=true; scratch(e);});
@@ -1162,7 +1197,7 @@ function renderQuiz(zone, campaign, answers){
         zone.innerHTML = '';
         const result = drawPrize(campaign);
         finishParticipation(campaign, answers, result);
-        showResult(zone, result);
+        showResult(zone, result, campaign);
       }, 900);
     };
   });

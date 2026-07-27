@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UA Play — Plataforma de premios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --azul:#00528F; --teal:#008091; --azul-osc:#002447; --cyan:#00C4DF; --rosa:#ff436e;
+    --bg:#F2FAFB; --white:#ffffff; --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--azul-osc);font-family:'Poppins',sans-serif;min-height:100vh;}
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes pop{0%{transform:scale(.85);opacity:0;}70%{transform:scale(1.05);opacity:1;}100%{transform:scale(1);}}
+  @keyframes spin360{to{transform:rotate(360deg);}}
+  @keyframes shimmer{0%{background-position:-200px 0;}100%{background-position:200px 0;}}
+  @keyframes bounceLand{0%{transform:scale(1);}30%{transform:scale(1.07);}55%{transform:scale(.97);}100%{transform:scale(1);}}
+  @keyframes floaty{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+  .topbar{background:linear-gradient(120deg,var(--azul-osc),var(--azul) 60%,var(--teal));color:#fff;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .iso{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--rosa));display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.25);animation:floaty 3s ease-in-out infinite;}
+  .brand span{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;}
+  .tagline{font-size:11px;opacity:.75;margin-top:-4px;}
+  .who{font-size:12px;opacity:.85;display:flex;align-items:center;gap:8px;}
+  .who a{color:#fff;text-decoration:underline;cursor:pointer;}
+  nav{display:flex;gap:8px;align-items:center;}
+  nav button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);color:#fff;padding:8px 16px;border-radius:999px;font-family:'Poppins',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:.2s;}
+  nav button.active{background:var(--rosa);border-color:var(--rosa);}
+  main{max-width:980px;margin:0 auto;padding:28px 20px 80px;}
+  h1.hero{font-family:'Bebas Neue',sans-serif;font-size:44px;letter-spacing:.5px;color:var(--azul-osc);margin:10px 0 4px;animation:fadeInUp .4s ease both;}
+  .sub{color:#4a6b80;margin:0 0 26px;font-size:15px;animation:fadeInUp .4s ease .05s both;}
+  .card{background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:0 8px 24px rgba(0,36,71,.08);margin-bottom:20px;animation:fadeInUp .4s ease both;}
+  .card h2{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.5px;margin:0 0 14px;color:var(--azul);display:flex;align-items:center;gap:8px;}
+  label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px;color:var(--azul-osc);}
+  input[type=text],input[type=number],input[type=datetime-local],select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #dfeef2;font-family:'Poppins',sans-serif;font-size:14px;background:#fbfeff;}
+  textarea{min-height:110px;resize:vertical;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--cyan);border-color:var(--cyan);}
+  .game-types{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px;}
+  .game-type{border:2px solid #e3f1f4;border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:.15s;background:#fbfeff;}
+  .game-type:hover{transform:translateY(-2px);}
+  .game-type.sel{border-color:var(--rosa);background:#fff0f4;}
+  .game-type .emoji{font-size:28px;display:block;margin-bottom:6px;}
+  .game-type b{font-size:13px;}
+  .mode-toggle{display:flex;gap:10px;margin-top:6px;}
+  .mode-opt{flex:1;border:2px solid #e3f1f4;border-radius:12px;padding:12px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;background:#fbfeff;font-family:'Poppins',sans-serif;}
+  .mode-opt.sel{border-color:var(--teal);background:#e9fbfb;color:var(--teal);}
+  .row-item{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;background:#fbfeff;border:1px solid #e3f1f4;border-radius:10px;padding:8px;}
+  .row-item input[type=text]{flex:2 1 140px;}
+  .row-item input[type=number]{flex:1 1 70px;width:auto;}
+  .row-item button.del{background:none;border:none;color:var(--rosa);font-size:18px;cursor:pointer;}
+  .add-btn{background:none;border:2px dashed var(--cyan);color:var(--teal);padding:8px 14px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;margin-top:4px;}
+  .prob-bar{height:10px;border-radius:6px;background:#eef7f8;overflow:hidden;margin:10px 0 4px;display:flex;}
+  .prob-bar div{height:100%;}
+  .prob-msg{font-size:13px;font-weight:600;}
+  .prob-ok{color:var(--teal);}
+  .prob-bad{color:var(--rosa);}
+  .cta{background:var(--rosa);color:#fff;border:none;padding:13px 22px;border-radius:999px;font-family:'Poppins',sans-serif;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 6px 16px rgba(255,67,110,.35);transition:transform .15s;}
+  .cta:active{transform:scale(.96);}
+  .cta:disabled{background:#c9d6dc;box-shadow:none;cursor:not-allowed;}
+  .cta.ghost{background:transparent;color:var(--azul);border:2px solid var(--azul);box-shadow:none;}
+  .campaign-list .item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:#fbfeff;border:1px solid #e3f1f4;margin-bottom:8px;}
+  .item .meta{font-size:12px;color:#5b7c8f;}
+  .badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;}
+  .badge.active{background:#e2f7ee;color:#0a8f56;}
+  .badge.ended{background:#fdeaea;color:var(--rosa);}
+  .badge.draft{background:#eef1f5;color:#5b7c8f;}
+  .link-box{display:flex;gap:8px;align-items:center;background:#f2fbfc;border:1px dashed var(--cyan);border-radius:10px;padding:10px 12px;font-size:13px;word-break:break-all;}
+  .icon-btn{background:#fff;border:1px solid #dfeef2;border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;}
+  .icon-btn:active{transform:scale(.92);}
+  .public-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:10px;}
+  .stage{position:relative;width:280px;height:280px;margin:20px auto;}
+  .stage.land{animation:bounceLand .5s ease;}
+  canvas#wheel{width:280px;height:280px;}
+  .pointer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:22px solid var(--rosa);filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));z-index:5;}
+  .scratch-wrap{position:relative;width:280px;height:170px;margin:20px auto;border-radius:16px;overflow:hidden;box-shadow:0 8px 20px rgba(0,36,71,.15);animation:pop .4s ease both;}
+  .scratch-under{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#fff;font-family:'Bebas Neue';font-size:22px;color:var(--azul);padding:10px;text-align:center;}
+  #scratchCanvas{position:absolute;inset:0;cursor:grab;touch-action:none;background-size:200px 100%;background-image:linear-gradient(120deg,transparent 40%,rgba(255,255,255,.35) 50%,transparent 60%);animation:shimmer 2.4s linear infinite;}
+  .result{margin-top:16px;padding:20px;border-radius:16px;background:linear-gradient(135deg,var(--azul),var(--teal));color:#fff;max-width:320px;animation:pop .5s ease both;}
+  .result h3{font-family:'Bebas Neue';font-size:28px;margin:6px 0;letter-spacing:.5px;}
+  .field-question{margin-bottom:10px;}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:50;}
+  .empty{color:#6f92a3;font-size:13px;text-align:center;padding:20px 0;}
+  .expired{color:var(--rosa);font-weight:700;}
+  .spinner{width:34px;height:34px;border-radius:50%;border:4px solid #e3f1f4;border-top-color:var(--rosa);margin:18px auto;animation:spin360 .8s linear infinite;}
+  .quiz-btn{animation:fadeInUp .35s ease both;}
+  .quiz-btn:nth-child(2){animation-delay:.05s;}
+  .quiz-btn:nth-child(3){animation-delay:.1s;}
+  .quiz-btn:nth-child(4){animation-delay:.15s;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,36,71,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal-box{background:#fff;border-radius:20px;padding:26px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;animation:pop .3s ease both;}
+  .modal-box h2{font-family:'Bebas Neue';font-size:26px;color:var(--azul);margin:0 0 6px;}
+  .help-step{display:flex;gap:12px;margin:16px 0;align-items:flex-start;}
+  .help-step .num{width:28px;height:28px;border-radius:50%;background:var(--rosa);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
+  .help-step p{margin:0;font-size:14px;color:#2c4a5c;line-height:1.4;}
+  .step-hint{font-size:12.5px;color:#5b7c8f;margin:-8px 0 14px;line-height:1.4;}
+
+  @media (max-width: 640px){
+    .topbar{padding:14px 16px;flex-direction:column;align-items:flex-start;}
+    .who{order:3;}
+    nav{width:100%;}
+    nav button{flex:1;text-align:center;}
+    main{padding:20px 14px 60px;}
+    h1.hero{font-size:32px;}
+    .card{padding:16px;}
+    .game-types{grid-template-columns:1fr 1fr;}
+    .game-types .game-type:nth-child(3){grid-column:span 2;}
+    .mode-toggle{flex-direction:column;}
+    .stage{width:240px;height:240px;}
+    canvas#wheel{width:240px;height:240px;}
+    .scratch-wrap{width:100%;max-width:280px;}
+  }
+  @media (max-width: 380px){
+    .game-types{grid-template-columns:1fr;}
+    .game-types .game-type:nth-child(3){grid-column:auto;}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="iso">ua</div>
+    <div>
+      <span>UA Play</span>
+      <div class="tagline">Generador de concursos y promos interactivas</div>
+    </div>
+  </div>
+  <div class="who" id="whoBox"></div>
+  <nav>
+    <button id="navAdmin" class="active">Crear campaña</button>
+    <button id="navList">Mis campañas</button>
+    <button id="navAdminPanel" style="background:rgba(0,0,0,.18);">⚙️ Panel admin</button>
+    <button id="navHelp" style="background:rgba(255,255,255,.12);">❓ Cómo funciona</button>
+  </nav>
+</div>
+
+<main id="app"></main>
+
+<script>
+let campaigns = [];
+let currentDraft = null;
+let me = null;
+
+const GAME_TYPES = [
+  {id:'roulette', label:'Ruleta', emoji:'🎡'},
+  {id:'scratch', label:'Raspadita', emoji:'🎟️'},
+  {id:'quiz', label:'Quiz', emoji:'❓'},
+];
+const BRAND_COLORS = ['#00528F','#008091','#00C4DF','#ff436e','#002447'];
+
+const TEMPLATES = [
+  {
+    id:'roulette-classic', label:'Ruleta clásica', emoji:'🎡',
+    desc:'3 premios + seguir participando',
+    apply(d){
+      d.gameType='roulette'; d.rouletteMode='prizes';
+      d.prizes=[
+        {id:'p1', name:'10% de descuento', probability:15, stock:null},
+        {id:'p2', name:'Upgrade de cobertura', probability:10, stock:20},
+        {id:'p3', name:'Kit de viaje', probability:5, stock:10},
+      ];
+    }
+  },
+  {
+    id:'scratch-simple', label:'Raspadita simple', emoji:'🎟️',
+    desc:'2 premios, ideal para acciones cortas',
+    apply(d){
+      d.gameType='scratch';
+      d.prizes=[
+        {id:'p1', name:'20% de descuento', probability:20, stock:null},
+        {id:'p2', name:'Envío gratis', probability:10, stock:50},
+      ];
+    }
+  },
+  {
+    id:'quiz-prize', label:'Quiz con premio', emoji:'❓',
+    desc:'Pregunta + sorteo al final',
+    apply(d){
+      d.gameType='quiz';
+      d.prizes=[{id:'p1', name:'Descuento sorpresa', probability:25, stock:null}];
+    }
+  },
+  {
+    id:'names-draw', label:'Sorteo de nombres', emoji:'📋',
+    desc:'Girás entre una lista que vos cargás',
+    apply(d){
+      d.gameType='roulette'; d.rouletteMode='names';
+    }
+  },
+  {
+    id:'blank', label:'Empezar de cero', emoji:'✍️',
+    desc:'Arrancar en blanco',
+    apply(d){}
+  },
+];
+
+async function loadIdentity(){
+  try{ const res = await window.storage.get('identity'); me = res ? JSON.parse(res.value) : null; }
+  catch(e){ me = null; }
+}
+async function saveIdentity(name){
+  me = {creatorId: 'u_'+slugify(name), name};
+  await window.storage.set('identity', JSON.stringify(me));
+}
+function renderIdentityGate(){
+  const app = document.getElementById('app');
+  document.getElementById('whoBox').innerHTML = '';
+  app.innerHTML = `
+    <div class="card" style="max-width:360px;margin:60px auto;">
+      <h2>👋 ¿Cómo te llamás?</h2>
+      <p class="sub">Solamente verás las acciones creadas bajo tu nombre.</p>
+      <input type="text" id="ideName" placeholder="Nombre y apellido">
+      <button class="cta" id="ideGo" style="width:100%;margin-top:14px;">Entrar</button>
+    </div>
+  `;
+  document.getElementById('ideGo').onclick = async ()=>{
+    const v = document.getElementById('ideName').value.trim();
+    if(!v) return;
+    await saveIdentity(v);
+    location.hash = '#/';
+    boot();
+  };
+}
+function renderWhoBox(){
+  document.getElementById('whoBox').innerHTML = `Hola, <b>${escapeHtml(me.name)}</b> · <a id="switchUser">cambiar</a>`;
+  document.getElementById('switchUser').onclick = async ()=>{
+    await window.storage.delete('identity');
+    me = null;
+    renderIdentityGate();
+  };
+  maybeShowFirstTimeHelp();
+}
+
+async function loadCampaigns(){
+  try{ const res = await window.storage.get('campaigns', true); campaigns = res ? JSON.parse(res.value) : []; }
+  catch(e){ campaigns = []; }
+}
+async function saveCampaigns(){ await window.storage.set('campaigns', JSON.stringify(campaigns), true); }
+
+function toDatetimeLocal(date){
+  const pad = n=>String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function openHelp(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'helpOverlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h2>¿Cómo funciona UA Play?</h2>
+      <p class="sub" style="margin:0 0 4px;">4 pasos y ya tenés tu concurso funcionando.</p>
+      <div class="help-step"><div class="num">1</div><p><b>Elegís el juego</b> — ruleta, raspadita o quiz. Podés arrancar de una plantilla ya armada para no partir de cero.</p></div>
+      <div class="help-step"><div class="num">2</div><p><b>Cargás los premios y las fechas</b> — qué se puede ganar, con qué probabilidad, y cuándo arranca y termina la promo.</p></div>
+      <div class="help-step"><div class="num">3</div><p><b>Publicás</b> — te da un link (y un código QR) para mandar por WhatsApp o mostrar en un stand. La gente entra ahí, juega y participa.</p></div>
+      <div class="help-step"><div class="num">4</div><p><b>Te llegan los datos solo</b> — cuando la promo termina, recibís por mail la lista de quién jugó y qué ganó, sin tener que hacer nada.</p></div>
+      <button class="cta" id="closeHelp" style="width:100%;margin-top:10px;">Entendido</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('closeHelp').onclick = ()=> overlay.remove();
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+}
+document.getElementById('navHelp').onclick = openHelp;
+
+async function maybeShowFirstTimeHelp(){
+  try{
+    const res = await window.storage.get('sawIntro');
+    if(!res){ openHelp(); await window.storage.set('sawIntro', 'true'); }
+  }catch(e){ openHelp(); }
+}
+
+function slugify(name){
+  return (name||'x').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') + '-' + Math.random().toString(36).slice(2,6);
+}
+
+function newDraft(){
+  return {
+    id: 'c_' + Date.now(), creatorId: me.creatorId, creatorName: me.name,
+    name:'', slug:'', gameType:'roulette', rouletteMode:'prizes',
+    questions:[{id:'q1', label:'Nombre y apellido'}, {id:'q2', label:'Email'}],
+    prizes:[{id:'p1', name:'', probability:0, stock:null}],
+    continueProbability: 100, namesList: [],
+    startAt:'', endAt:'', createdAt: Date.now(), participations: [],
+    notifyEmail: '', notified:false, notifiedAt:null, termsText: '', __templateApplied:false
+  };
+}
+
+function route(){
+  const hash = location.hash;
+  if(hash.startsWith('#/play/')){ renderPublic(hash.replace('#/play/','')); return; }
+  if(hash.startsWith('#/edit/')){ renderEditor(hash.replace('#/edit/','')); return; }
+  if(hash === '#/admin'){
+    if(!me){ renderIdentityGate(); return; }
+    renderWhoBox(); setNav('navAdminPanel');
+    renderAdminGate();
+    return;
+  }
+  if(!me){ renderIdentityGate(); return; }
+  renderWhoBox();
+  if(hash === '#/list'){ setNav('navList'); renderList(); }
+  else { setNav('navAdmin'); renderAdmin(); }
+}
+let adminUnlocked = false;
+
+async function getAdminPin(){
+  try{ const res = await window.storage.get('adminPin', true); return res ? JSON.parse(res.value).pin : '4896'; }
+  catch(e){ return '4896'; }
+}
+async function saveAdminPin(pin){ await window.storage.set('adminPin', JSON.stringify({pin}), true); }
+
+async function renderAdminGate(){
+  const app = document.getElementById('app');
+  const existingPin = await getAdminPin();
+
+  if(adminUnlocked){ renderAdminPanel(); return; }
+
+  app.innerHTML = `
+    <div class="card" style="max-width:360px;margin:60px auto;">
+      <h2>🔒 ${existingPin ? 'Panel admin' : 'Crear PIN de admin'}</h2>
+      <p class="sub">${existingPin ? 'Ingresá el PIN para ver todas las campañas de todos los comerciales.' : 'Todavía no hay un PIN configurado. Creá uno — a partir de ahora va a ser el que pida el acceso al panel general.'}</p>
+      <input type="password" id="pinInput" placeholder="PIN" inputmode="numeric">
+      <div id="pinError" style="color:var(--rosa);font-size:13px;font-weight:600;margin-top:6px;"></div>
+      <button class="cta" id="pinGo" style="width:100%;margin-top:14px;">${existingPin ? 'Entrar' : 'Crear y entrar'}</button>
+    </div>
+  `;
+  document.getElementById('pinGo').onclick = async ()=>{
+    const v = document.getElementById('pinInput').value.trim();
+    if(!v){ return; }
+    if(!existingPin){
+      await saveAdminPin(v);
+      adminUnlocked = true;
+      renderAdminPanel();
+    } else if(v === existingPin){
+      adminUnlocked = true;
+      renderAdminPanel();
+    } else {
+      document.getElementById('pinError').textContent = 'PIN incorrecto.';
+    }
+  };
+}
+
+function renderAdminPanel(){
+  const app = document.getElementById('app');
+  const now = Date.now();
+
+  const withStatus = campaigns.map(c=>{
+    const ended = c.endAt && new Date(c.endAt).getTime() < now;
+    const notStarted = c.startAt && new Date(c.startAt).getTime() > now;
+    const status = ended ? 'ended' : (notStarted ? 'draft' : 'active');
+    return {...c, _status: status};
+  });
+
+  const total = withStatus.length;
+  const activeCount = withStatus.filter(c=>c._status==='active').length;
+  const endedCount = withStatus.filter(c=>c._status==='ended').length;
+  const scheduledCount = withStatus.filter(c=>c._status==='draft').length;
+  const totalParticipants = withStatus.reduce((a,c)=>a+c.participations.length,0);
+  const uniqueCreators = new Set(withStatus.map(c=>c.creatorId)).size;
+  const byType = GAME_TYPES.map(g=>({label:g.label, count: withStatus.filter(c=>c.gameType===g.id).length}));
+
+  app.innerHTML = `
+    <h1 class="hero">Panel admin</h1>
+    <p class="sub">Todas las campañas de todos los comerciales, en un solo lugar.</p>
+
+    <div class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px;text-align:center;">
+      <div><div style="font-family:'Bebas Neue';font-size:30px;color:var(--azul);">${total}</div><div class="meta">Campañas totales</div></div>
+      <div><div style="font-family:'Bebas Neue';font-size:30px;color:#0a8f56;">${activeCount}</div><div class="meta">Activas</div></div>
+      <div><div style="font-family:'Bebas Neue';font-size:30px;color:#5b7c8f;">${scheduledCount}</div><div class="meta">Programadas</div></div>
+      <div><div style="font-family:'Bebas Neue';font-size:30px;color:var(--rosa);">${endedCount}</div><div class="meta">Finalizadas</div></div>
+      <div><div style="font-family:'Bebas Neue';font-size:30px;color:var(--teal);">${totalParticipants}</div><div class="meta">Inscriptos totales</div></div>
+      <div><div style="font-family:'Bebas Neue';font-size:30px;color:var(--azul-osc);">${uniqueCreators}</div><div class="meta">Comerciales activos</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Por tipo de juego</h2>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        ${byType.map(t=>`<div class="meta"><b style="color:var(--azul);">${t.count}</b> ${t.label}</div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Todas las campañas</h2>
+      <input type="text" id="adminFilter" placeholder="Filtrar por nombre o comercial..." style="margin-bottom:12px;">
+      <div id="adminCampaignList"></div>
+    </div>
+  `;
+
+  function renderRows(filter){
+    const f = (filter||'').toLowerCase();
+    const rows = withStatus
+      .filter(c => !f || c.name.toLowerCase().includes(f) || (c.creatorName||'').toLowerCase().includes(f))
+      .sort((a,b)=>b.createdAt-a.createdAt);
+    const box = document.getElementById('adminCampaignList');
+    if(rows.length===0){ box.innerHTML = '<div class="empty">No hay campañas que coincidan.</div>'; return; }
+    box.innerHTML = rows.map(c=>{
+      const statusLabel = c._status==='ended' ? 'Finalizada' : (c._status==='draft' ? 'Programada' : 'Activa');
+      const link = location.origin + location.pathname + '#/play/' + c.slug;
+      return `
+      <div class="item" style="flex-direction:column;align-items:stretch;gap:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <b>${escapeHtml(c.name)}</b>
+            <div class="meta">por ${escapeHtml(c.creatorName||'—')} · ${GAME_TYPES.find(g=>g.id===c.gameType).label} · creada el ${new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
+          </div>
+          <span class="badge ${c._status}">${statusLabel}</span>
+        </div>
+        <div class="meta">👥 ${c.participations.length} inscriptos · 📧 ${c.notified ? 'enviado' : 'pendiente de envío'} a ${escapeHtml(c.notifyEmail||'—')}</div>
+        <div class="link-box" style="justify-content:space-between;">
+          <span style="overflow-wrap:anywhere;">🔗 ${link}</span>
+          <button class="icon-btn" data-admincopy="${link}">📋</button>
+        </div>
+        <button class="cta ghost" data-admindelete="${c.id}" style="align-self:flex-start;padding:5px 12px;font-size:12px;color:var(--rosa);border-color:var(--rosa);">🗑️ Borrar</button>
+      </div>`;
+    }).join('');
+
+    box.querySelectorAll('[data-admincopy]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        try{ await navigator.clipboard.writeText(btn.dataset.admincopy); }catch(e){}
+        const orig = btn.textContent; btn.textContent='✓'; setTimeout(()=>{btn.textContent=orig;},1200);
+      };
+    });
+    box.querySelectorAll('[data-admindelete]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const c = campaigns.find(x=>x.id===btn.dataset.admindelete);
+        if(!confirm(`¿Borrar "${c.name}" (de ${c.creatorName})? No se puede deshacer.`)) return;
+        campaigns = campaigns.filter(x=>x.id!==btn.dataset.admindelete);
+        await saveCampaigns();
+        renderAdminPanel();
+      };
+    });
+  }
+
+  renderRows('');
+  document.getElementById('adminFilter').oninput = e=> renderRows(e.target.value);
+}
+
+function renderEditor(token){
+  const app = document.getElementById('app');
+  document.getElementById('whoBox').innerHTML = me ? `Hola, <b>${escapeHtml(me.name)}</b>` : 'Editando por invitación';
+  document.getElementById('navAdmin').classList.remove('active');
+  document.getElementById('navList').classList.remove('active');
+  const campaign = campaigns.find(c=>c.editToken===token);
+  if(!campaign){
+    app.innerHTML = `<div class="public-wrap"><h1 class="hero">Link inválido</h1><p class="sub">Este link de edición no corresponde a ninguna campaña.</p></div>`;
+    return;
+  }
+  currentDraft = campaign;
+  renderAdmin();
+}
+function setNav(id){
+  document.getElementById('navAdmin').classList.toggle('active', id==='navAdmin');
+  document.getElementById('navList').classList.toggle('active', id==='navList');
+  document.getElementById('navAdminPanel').classList.toggle('active', id==='navAdminPanel');
+}
+document.getElementById('navAdmin').onclick = ()=>{location.hash='#/'; currentDraft=newDraft(); route();};
+document.getElementById('navList').onclick = ()=>{location.hash='#/list';};
+document.getElementById('navAdminPanel').onclick = ()=>{location.hash='#/admin';};
+window.addEventListener('hashchange', route);
+
+function renderTemplatePicker(){
+  const app = document.getElementById('app');
+  const d = currentDraft;
+  app.innerHTML = `
+    <h1 class="hero">¿Cómo querés arrancar?</h1>
+    <p class="sub">Elegí una base ya armada y después ajustás lo que necesites — o empezá en blanco.</p>
+    <div class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+      ${TEMPLATES.map(t=>`
+        <div class="game-type" data-template="${t.id}" style="text-align:left;">
+          <span class="emoji">${t.emoji}</span>
+          <b>${t.label}</b>
+          <div class="meta" style="margin-top:4px;">${t.desc}</div>
+        </div>`).join('')}
+    </div>
+  `;
+  document.querySelectorAll('[data-template]').forEach(el=>{
+    el.onclick = ()=>{
+      const tpl = TEMPLATES.find(t=>t.id===el.dataset.template);
+      tpl.apply(d);
+      d.__templateApplied = true;
+      renderAdmin();
+    };
+  });
+}
+
+function renderAdmin(){
+  if(!currentDraft) currentDraft = newDraft();
+  const d = currentDraft;
+  const app = document.getElementById('app');
+  const editing = !!d.slug;
+
+  if(!editing && !d.__templateApplied){ renderTemplatePicker(); return; }
+
+  const isNamesMode = d.gameType==='roulette' && d.rouletteMode==='names';
+
+  const sumPrizes = d.prizes.reduce((a,p)=>a+(Number(p.probability)||0),0);
+  const totalOk = isNamesMode ? true : (sumPrizes <= 100 && sumPrizes > 0);
+  const namesOk = isNamesMode ? d.namesList.filter(n=>n.trim()).length>0 : true;
+
+  app.innerHTML = `
+    <h1 class="hero">${editing ? 'Editar campaña' : 'Armá tu promo'}</h1>
+    <p class="sub">${editing ? 'Cambiá lo que necesites — el link público no cambia, así que sigue funcionando aunque hayas reactivado fechas vencidas.' : 'Elegí el juego, cargá las preguntas, los premios y listo — generás el link para compartir.'}</p>
+
+    ${editing ? `
+    <div class="card" style="padding:14px 22px;">
+      <div class="link-box" style="margin-bottom:8px;">🔗 Link público: ${location.origin + location.pathname + '#/play/' + d.slug}</div>
+      <div class="link-box">✏️ Link de edición (para colaborar): ${location.origin + location.pathname + '#/edit/' + d.editToken}</div>
+    </div>` : ''}
+
+    <div class="card">
+      <h2>Paso 1 · Datos generales</h2>
+      <p class="step-hint">Esto es lo primero que va a ver quien entre a tu promo.</p>
+      <label>Nombre de la campaña</label>
+      <input type="text" id="fName" placeholder="Ej: Ruleta de verano LATAM" value="${escapeAttr(d.name)}">
+
+      <label>Tipo de juego</label>
+      <p class="step-hint">Elegí cómo va a participar la gente.</p>
+      <div class="game-types">
+        ${GAME_TYPES.map(g=>`
+          <div class="game-type ${d.gameType===g.id?'sel':''}" data-type="${g.id}">
+            <span class="emoji">${g.emoji}</span><b>${g.label}</b>
+          </div>`).join('')}
+      </div>
+
+      ${d.gameType==='roulette' ? `
+      <label>Modo de la ruleta</label>
+      <div class="mode-toggle">
+        <div class="mode-opt ${d.rouletteMode==='prizes'?'sel':''}" data-mode="prizes">🎁 Premios<br><span style="font-weight:400;font-size:11px;">reparte los premios configurados por probabilidad</span></div>
+        <div class="mode-opt ${d.rouletteMode==='names'?'sel':''}" data-mode="names">📋 Nombres y apellidos<br><span style="font-weight:400;font-size:11px;">sortea entre una lista de personas que vos cargás</span></div>
+      </div>` : ''}
+
+      <label>Ventana activa</label>
+      <p class="step-hint">Desde cuándo y hasta cuándo se puede jugar. Pasada la fecha de fin, el link deja de funcionar solo.</p>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;"><span style="font-size:11px;color:#5b7c8f;">Desde</span><input type="datetime-local" id="fStart" value="${d.startAt}"></div>
+        <div style="flex:1;"><span style="font-size:11px;color:#5b7c8f;">Hasta</span><input type="datetime-local" id="fEnd" value="${d.endAt}"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" class="add-btn" data-quickstart="now" style="margin-top:0;">▶ Arranca ahora</button>
+        <button type="button" class="add-btn" data-quickdur="7" style="margin-top:0;">Dura 7 días</button>
+        <button type="button" class="add-btn" data-quickdur="15" style="margin-top:0;">Dura 15 días</button>
+        <button type="button" class="add-btn" data-quickdur="30" style="margin-top:0;">Dura 1 mes</button>
+      </div>
+
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--teal);">📄 Bases y condiciones (opcional)</summary>
+        <div style="margin-top:10px;">
+          <p class="sub" style="font-size:12px;">Si cargás un texto acá, el participante va a tener que aceptarlo con un check antes de jugar. Si lo dejás vacío, no se le pide nada.</p>
+          <textarea id="fTerms" placeholder="Ej: Promoción válida del ... al ... Un premio por persona. Universal Assistance se reserva el derecho de...">${escapeHtml(d.termsText)}</textarea>
+        </div>
+      </details>
+    </div>
+
+    ${isNamesMode ? `
+    <div class="card">
+      <h2>Paso 2 · Lista de nombres y apellidos</h2>
+      <p class="step-hint">Uno por línea. Cada spin saca a alguien de la lista y no se repite hasta que reinicies el sorteo.</p>
+      <textarea id="fNames" placeholder="Juan Pérez&#10;María Gómez&#10;...">${escapeHtml(d.namesList.join('\n'))}</textarea>
+    </div>` : `
+    <div class="card">
+      <h2>Paso 2 · Preguntas para el participante</h2>
+      <p class="step-hint">El email siempre se pide (para que cada persona juegue una sola vez). Acá agregás lo demás que quieras saber: nombre, teléfono, sucursal, lo que necesites.</p>
+      <div id="questionsList"></div>
+      <button class="add-btn" id="addQuestion">+ agregar pregunta</button>
+    </div>
+
+    <div class="card">
+      <h2>Paso 3 · Premios y probabilidades</h2>
+      <p class="step-hint">Pensalo como repartir 100 boletos: cada premio se lleva un %, y lo que sobra queda como "seguir participando" (no ganó nada esta vez). No hace falta que hagas la cuenta — se calcula solo abajo.</p>
+      <div id="prizesList"></div>
+      <button class="add-btn" id="addPrize">+ agregar premio</button>
+      <label style="margin-top:16px;">% de "seguir participando" (se calcula solo)</label>
+      <div style="padding:10px 12px;background:#f2fbfc;border-radius:10px;font-weight:700;color:var(--azul);">
+        ${Math.max(0, 100 - sumPrizes)}%
+        ${sumPrizes>100 ? ' <span style="color:var(--rosa);font-weight:600;font-size:12px;">⚠️ los premios ya suman más de 100%, bajá algún %</span>' : ''}
+      </div>
+      <div class="prob-bar">
+        ${d.prizes.map((p,i)=>`<div style="width:${p.probability}%;background:${BRAND_COLORS[i%BRAND_COLORS.length]}"></div>`).join('')}
+        <div style="width:${Math.max(0,100-sumPrizes)}%;background:#c7d7de"></div>
+      </div>
+      <div class="prob-msg ${totalOk?'prob-ok':'prob-bad'}">
+        ${totalOk ? '✓ Listo, suma 100%' : `Los premios suman ${sumPrizes}% — no puede pasarse de 100%`}
+      </div>
+    </div>`}
+
+    <div class="card">
+      <h2>Paso ${isNamesMode ? '3' : '4'} · Envío automático de datos</h2>
+      <label>¿A qué email querés que enviemos los datos de los inscriptos cuando finalice la acción?</label>
+      <input type="email" id="fNotifyEmail" placeholder="promos@universalassistance.com" value="${escapeAttr(d.notifyEmail)}">
+      <p class="sub" style="margin:8px 0 0;font-size:12px;">Apenas se cumpla la fecha de fin, el sistema arma un archivo con todas las respuestas y lo manda solo, sin que tengas que hacer nada.</p>
+      <details style="margin-top:10px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--teal);">⚙️ Envío automático (config técnica — ya la debería tener cargada marketing)</summary>
+        <div style="margin-top:10px;">
+          <p class="sub" style="font-size:12px;">Esta configuración es única para toda la empresa, no por comercial. Si ves los campos vacíos, avisale a marketing en vez de inventar una cuenta propia.</p>
+          <label>Service ID</label><input type="text" id="cfgService" placeholder="service_xxxx">
+          <label>Template ID</label><input type="text" id="cfgTemplate" placeholder="template_xxxx">
+          <label>Public Key</label><input type="text" id="cfgKey" placeholder="tu public key">
+          <button class="add-btn" id="cfgSave" style="margin-top:8px;">Guardar credenciales</button>
+          <span id="cfgSavedFlash" style="font-size:12px;color:var(--teal);margin-left:8px;"></span>
+        </div>
+      </details>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="cta" id="publishBtn" ${(!d.name||!totalOk||!d.startAt||!d.endAt||!namesOk||!d.notifyEmail)?'disabled':''}>${editing ? 'Guardar cambios ✓' : 'Publicar y generar link 🚀'}</button>
+      <button class="cta ghost" id="previewBtn" type="button">👀 Probar cómo lo ve el participante</button>
+      <span id="savedFlash" style="font-size:13px;color:var(--teal);font-weight:600;"></span>
+    </div>
+  `;
+
+  if(!isNamesMode){ renderQuestions(); renderPrizes(); }
+
+  document.getElementById('fName').oninput = e=>{d.name=e.target.value; refreshPublishState();};
+  document.getElementById('fStart').oninput = e=>{d.startAt=e.target.value; refreshPublishState();};
+  document.getElementById('fEnd').oninput = e=>{d.endAt=e.target.value; refreshPublishState();};
+  document.querySelector('[data-quickstart]').onclick = ()=>{ d.startAt = toDatetimeLocal(new Date()); renderAdmin(); };
+  document.querySelectorAll('[data-quickdur]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const base = d.startAt ? new Date(d.startAt) : new Date();
+      if(!d.startAt) d.startAt = toDatetimeLocal(base);
+      const end = new Date(base.getTime() + Number(btn.dataset.quickdur)*24*60*60*1000);
+      d.endAt = toDatetimeLocal(end);
+      renderAdmin();
+    };
+  });
+  const fNames = document.getElementById('fNames');
+  if(fNames) fNames.oninput = e=>{d.namesList = e.target.value.split('\n'); refreshPublishState();};
+  document.getElementById('fTerms').oninput = e=>{ d.termsText = e.target.value; };
+
+  document.querySelectorAll('.game-type').forEach(el=>{ el.onclick = ()=>{ d.gameType = el.dataset.type; renderAdmin(); }; });
+  document.querySelectorAll('.mode-opt').forEach(el=>{ el.onclick = ()=>{ d.rouletteMode = el.dataset.mode; renderAdmin(); }; });
+  const addQ = document.getElementById('addQuestion');
+  if(addQ) addQ.onclick = ()=>{ d.questions.push({id:'q'+Date.now(), label:''}); renderAdmin(); };
+  const addP = document.getElementById('addPrize');
+  if(addP) addP.onclick = ()=>{ d.prizes.push({id:'p'+Date.now(), name:'', probability:0, stock:null}); renderAdmin(); };
+  document.getElementById('publishBtn').onclick = editing ? saveEdits : publishCampaign;
+  document.getElementById('previewBtn').onclick = startPreview;
+
+  const fNotify = document.getElementById('fNotifyEmail');
+  if(fNotify) fNotify.oninput = e=>{ d.notifyEmail = e.target.value; refreshPublishState(); };
+
+  getEmailjsConfig().then(cfg=>{
+    if(cfg){
+      document.getElementById('cfgService').value = cfg.serviceId||'';
+      document.getElementById('cfgTemplate').value = cfg.templateId||'';
+      document.getElementById('cfgKey').value = cfg.publicKey||'';
+    }
+  });
+  document.getElementById('cfgSave').onclick = async ()=>{
+    const cfg = {
+      serviceId: document.getElementById('cfgService').value.trim(),
+      templateId: document.getElementById('cfgTemplate').value.trim(),
+      publicKey: document.getElementById('cfgKey').value.trim(),
+    };
+    await saveEmailjsConfig(cfg);
+    const flash = document.getElementById('cfgSavedFlash');
+    flash.textContent = 'Guardado ✓';
+    setTimeout(()=>{ flash.textContent=''; }, 2000);
+  };
+
+  function refreshPublishState(){
+    const s = d.prizes.reduce((a,p)=>a+(Number(p.probability)||0),0);
+    const okPrizes = isNamesMode ? d.namesList.filter(n=>n.trim()).length>0 : (s<=100 && s>0);
+    document.getElementById('publishBtn').disabled = !(d.name && d.startAt && d.endAt && d.notifyEmail && okPrizes);
+  }
+}
+
+function renderQuestions(){
+  const d = currentDraft;
+  const list = document.getElementById('questionsList');
+  list.innerHTML = d.questions.map(q=>`
+    <div class="row-item">
+      <input type="text" placeholder="Texto de la pregunta" value="${escapeAttr(q.label)}" data-qid="${q.id}">
+      <button class="del" data-delq="${q.id}">✕</button>
+    </div>`).join('');
+  list.querySelectorAll('input').forEach(inp=>{
+    inp.oninput = e=>{ d.questions.find(x=>x.id===inp.dataset.qid).label = e.target.value; };
+  });
+  list.querySelectorAll('[data-delq]').forEach(btn=>{
+    btn.onclick = ()=>{ d.questions = d.questions.filter(q=>q.id!==btn.dataset.delq); renderAdmin(); };
+  });
+}
+
+function renderPrizes(){
+  const d = currentDraft;
+  const list = document.getElementById('prizesList');
+  list.innerHTML = d.prizes.map(p=>`
+    <div class="row-item">
+      <input type="text" placeholder="Nombre del premio" value="${escapeAttr(p.name)}" data-pname="${p.id}">
+      <input type="number" placeholder="%" min="0" max="100" value="${p.probability}" data-pprob="${p.id}">
+      <input type="number" placeholder="Stock (vacío = ilimitado)" value="${p.stock??''}" data-pstock="${p.id}" style="flex:1 1 140px;">
+      <button class="del" data-delp="${p.id}">✕</button>
+    </div>`).join('');
+  list.querySelectorAll('[data-pname]').forEach(inp=>{ inp.oninput = e=>{ d.prizes.find(x=>x.id===inp.dataset.pname).name = e.target.value; }; });
+  list.querySelectorAll('[data-pprob]').forEach(inp=>{ inp.oninput = e=>{ d.prizes.find(x=>x.id===inp.dataset.pprob).probability = Number(e.target.value)||0; renderAdmin(); }; });
+  list.querySelectorAll('[data-pstock]').forEach(inp=>{ inp.oninput = e=>{ d.prizes.find(x=>x.id===inp.dataset.pstock).stock = e.target.value===''?null:Number(e.target.value); }; });
+  list.querySelectorAll('[data-delp]').forEach(btn=>{ btn.onclick = ()=>{ d.prizes = d.prizes.filter(p=>p.id!==btn.dataset.delp); renderAdmin(); }; });
+}
+
+async function publishCampaign(){
+  const d = currentDraft;
+  d.slug = slugify(d.name);
+  d.editToken = 'e_' + Math.random().toString(36).slice(2,10);
+  d.status = 'active';
+  if(d.gameType==='roulette' && d.rouletteMode==='names'){
+    d.namesList = d.namesList.map(n=>n.trim()).filter(Boolean);
+    d.namesPool = [...d.namesList];
+  }
+  campaigns.push(d);
+  await saveCampaigns();
+  currentDraft = newDraft();
+  location.hash = '#/list';
+}
+
+async function saveEdits(){
+  const d = currentDraft;
+  if(d.gameType==='roulette' && d.rouletteMode==='names'){
+    d.namesList = d.namesList.map(n=>n.trim()).filter(Boolean);
+    if(!d.namesPool) d.namesPool = [...d.namesList];
+  }
+  await saveCampaigns();
+  const flash = document.getElementById('savedFlash');
+  if(flash){ flash.textContent = 'Guardado ✓ — el link sigue siendo el mismo'; setTimeout(()=>{ if(flash) flash.textContent=''; }, 2500); }
+}
+
+let listFilter = 'all';
+
+function renderList(){
+  const app = document.getElementById('app');
+  const now = Date.now();
+  const mineAll = campaigns.filter(c=>c.creatorId===me.creatorId);
+  mineAll.forEach(c=>{
+    if(c.notified) return;
+    checkAndSendIfDue(c).then(()=>{ if(c.notified) renderList(); });
+  });
+  const withStatus = mineAll.map(c=>{
+    const ended = c.endAt && new Date(c.endAt).getTime() < now;
+    const notStarted = c.startAt && new Date(c.startAt).getTime() > now;
+    return {...c, _status: ended ? 'ended' : (notStarted ? 'draft' : 'active')};
+  });
+  const mine = listFilter==='all' ? withStatus : withStatus.filter(c=>c._status===listFilter);
+  const chips = [
+    {id:'all', label:`Todas (${withStatus.length})`},
+    {id:'active', label:`Activas (${withStatus.filter(c=>c._status==='active').length})`},
+    {id:'draft', label:`Programadas (${withStatus.filter(c=>c._status==='draft').length})`},
+    {id:'ended', label:`Finalizadas (${withStatus.filter(c=>c._status==='ended').length})`},
+  ];
+  app.innerHTML = `
+    <h1 class="hero">Mis campañas</h1>
+    <p class="sub">Cada campaña tiene su propio link y se da de baja sola al pasar la fecha.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      ${chips.map(ch=>`<button class="mode-opt ${listFilter===ch.id?'sel':''}" data-filter="${ch.id}" style="flex:none;padding:8px 14px;">${ch.label}</button>`).join('')}
+    </div>
+    <div class="card campaign-list">
+      ${mine.length===0 ? '<div class="empty">No hay campañas en este filtro.</div>' :
+        mine.slice().reverse().map(c=>{
+          const status = c._status;
+          const ended = status==='ended';
+          const statusLabel = ended ? 'Finalizada' : (status==='draft' ? 'Programada' : 'Activa');
+          const link = location.origin + location.pathname + '#/play/' + c.slug;
+          const editLink = location.origin + location.pathname + '#/edit/' + c.editToken;
+          const isNames = c.gameType==='roulette' && c.rouletteMode==='names';
+          return `
+          <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <b>${escapeHtml(c.name)}</b>
+                <div class="meta">${GAME_TYPES.find(g=>g.id===c.gameType).label}${isNames?' · lista de nombres':''} · ${c.participations.length} participaciones</div>
+              </div>
+              <span class="badge ${status}">${statusLabel}</span>
+            </div>
+            <div class="link-box" style="justify-content:space-between;">
+              <span style="overflow-wrap:anywhere;">🔗 ${link}</span>
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button class="icon-btn" data-copy="${link}" title="Copiar link">📋</button>
+                <a class="icon-btn" href="https://wa.me/?text=${encodeURIComponent('¡Participá! ' + link)}" target="_blank" rel="noopener" title="Compartir por WhatsApp">💬</a>
+              </div>
+            </div>
+            <details>
+              <summary style="cursor:pointer;font-size:12px;color:var(--teal);font-weight:600;">📱 Ver código QR (para stands o puntos de venta)</summary>
+              <div style="text-align:center;padding:10px 0;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}" width="180" height="180" alt="QR de ${escapeAttr(c.name)}" style="border-radius:10px;border:1px solid #e3f1f4;">
+              </div>
+            </details>
+            <div class="link-box" style="justify-content:space-between;">
+              <span style="overflow-wrap:anywhere;">✏️ Link de edición (para colaborar): ${editLink}</span>
+              <button class="icon-btn" data-copy="${editLink}" title="Copiar link de edición" style="flex-shrink:0;">📋</button>
+            </div>
+            <div class="meta">
+              ${ended
+                ? (c.notified ? `📧 Datos enviados a ${escapeHtml(c.notifyEmail)} el ${new Date(c.notifiedAt).toLocaleString('es-AR')}` : `📧 Pendiente de enviar a ${escapeHtml(c.notifyEmail)} — se manda solo apenas se detecte que finalizó`)
+                : `📧 Al finalizar se enviarán los datos a ${escapeHtml(c.notifyEmail||'—')}`}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="cta ghost" data-edit="${c.editToken}" style="padding:6px 14px;font-size:12px;">✏️ Editar${ended ? ' / reactivar' : ''}</button>
+              ${isNames ? `<button class="cta ghost" data-reset="${c.id}" style="padding:6px 14px;font-size:12px;">↺ Reiniciar sorteo (${(c.namesPool||[]).length}/${c.namesList.length} sin salir)</button>` : ''}
+              <button class="cta ghost" data-duplicate="${c.id}" style="padding:6px 14px;font-size:12px;">📄 Duplicar</button>
+              <button class="cta ghost" data-delete="${c.id}" style="padding:6px 14px;font-size:12px;color:var(--rosa);border-color:var(--rosa);">🗑️ Borrar</button>
+            </div>
+          </div>`;
+        }).join('')
+      }
+    </div>
+    <button class="cta ghost" id="backAdmin">+ Nueva campaña</button>
+  `;
+  document.getElementById('backAdmin')?.addEventListener('click', ()=>{ currentDraft=newDraft(); location.hash='#/'; });
+
+  document.querySelectorAll('[data-filter]').forEach(btn=>{
+    btn.onclick = ()=>{ listFilter = btn.dataset.filter; renderList(); };
+  });
+
+  document.querySelectorAll('[data-copy]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      try{ await navigator.clipboard.writeText(btn.dataset.copy); }
+      catch(e){ /* si el navegador no da permiso, no pasa nada, el link ya está visible en el texto */ }
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(()=>{ btn.textContent = orig; }, 1200);
+    };
+  });
+
+  document.querySelectorAll('[data-duplicate]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const original = campaigns.find(c=>c.id===btn.dataset.duplicate);
+      const copy = JSON.parse(JSON.stringify(original));
+      copy.id = 'c_' + Date.now();
+      copy.name = original.name + ' (copia)';
+      copy.slug = slugify(copy.name);
+      copy.editToken = 'e_' + Math.random().toString(36).slice(2,10);
+      copy.participations = [];
+      copy.notified = false;
+      copy.notifiedAt = null;
+      if(copy.gameType==='roulette' && copy.rouletteMode==='names') copy.namesPool = [...copy.namesList];
+      campaigns.push(copy);
+      await saveCampaigns();
+      currentDraft = copy;
+      location.hash = '#/edit/' + copy.editToken;
+    };
+  });
+
+  document.querySelectorAll('[data-delete]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const c = campaigns.find(x=>x.id===btn.dataset.delete);
+      if(!confirm(`¿Borrar "${c.name}"? El link deja de funcionar y no se puede deshacer.`)) return;
+      campaigns = campaigns.filter(x=>x.id!==btn.dataset.delete);
+      await saveCampaigns();
+      renderList();
+    };
+  });
+
+  document.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.onclick = ()=>{ location.hash = '#/edit/' + btn.dataset.edit; };
+  });
+  document.querySelectorAll('[data-reset]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const c = campaigns.find(x=>x.id===btn.dataset.reset);
+      c.namesPool = [...c.namesList];
+      await saveCampaigns();
+      renderList();
+    };
+  });
+}
+
+async function getEmailjsConfig(){
+  try{ const res = await window.storage.get('emailjsConfig', true); return res ? JSON.parse(res.value) : null; }
+  catch(e){ return null; }
+}
+async function saveEmailjsConfig(cfg){ await window.storage.set('emailjsConfig', JSON.stringify(cfg), true); }
+
+function buildParticipantsCsv(campaign){
+  const isNamesMode = campaign.gameType==='roulette' && campaign.rouletteMode==='names';
+  if(isNamesMode){
+    const lines = ['ganador'];
+    campaign.participations.forEach(p=>{ if(p.result?.type==='name') lines.push(p.result.name); });
+    return lines.join('\n');
+  }
+  const headers = ['email', ...campaign.questions.map(q=>q.label), 'resultado'];
+  const lines = [headers.join(',')];
+  campaign.participations.forEach(p=>{
+    const row = [p.answers.__contactEmail||'', ...campaign.questions.map(q=> String(p.answers[q.id]||'').replace(/,/g,';'))];
+    const resultLabel = p.result?.type==='prize' ? p.result.prize.name : (p.result?.type==='name' ? p.result.name : 'seguir participando');
+    row.push(resultLabel);
+    lines.push(row.join(','));
+  });
+  return lines.join('\n');
+}
+
+async function checkAndSendIfDue(campaign){
+  if(campaign.notified) return;
+  if(!campaign.endAt || !campaign.notifyEmail) return;
+  if(new Date(campaign.endAt).getTime() > Date.now()) return;
+  await sendParticipantsEmail(campaign);
+}
+
+async function sendParticipantsEmail(campaign){
+  const cfg = await getEmailjsConfig();
+  if(!cfg || !cfg.serviceId || !cfg.templateId || !cfg.publicKey) return;
+  const csv = buildParticipantsCsv(campaign);
+  try{
+    const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        service_id: cfg.serviceId,
+        template_id: cfg.templateId,
+        user_id: cfg.publicKey,
+        template_params:{
+          to_email: campaign.notifyEmail,
+          campaign_name: campaign.name,
+          participants_count: campaign.participations.length,
+          participants_csv: csv
+        }
+      })
+    });
+    if(res.ok){ campaign.notified = true; campaign.notifiedAt = Date.now(); await saveCampaigns(); }
+  }catch(e){ /* si falla, se reintenta la próxima vez que alguien abra la página */ }
+}
+
+function drawPrize(campaign){
+  const available = campaign.prizes.filter(p => p.stock === null || p.stock > 0);
+  let cumulative = 0;
+  const roll = Math.random() * 100;
+  for(const p of available){
+    cumulative += Number(p.probability);
+    if(roll < cumulative){ if(p.stock !== null) p.stock -= 1; return {type:'prize', prize:p}; }
+  }
+  return {type:'continue'};
+}
+function drawName(campaign){
+  if(!campaign.namesPool) campaign.namesPool = [...campaign.namesList];
+  if(campaign.namesPool.length===0) return {type:'empty'};
+  const idx = Math.floor(Math.random()*campaign.namesPool.length);
+  const winner = campaign.namesPool.splice(idx,1)[0];
+  return {type:'name', name:winner, idx};
+}
+
+function renderPublic(slug){
+  const app = document.getElementById('app');
+  document.getElementById('whoBox').innerHTML = '';
+  const campaign = campaigns.find(c=>c.slug===slug);
+  if(!campaign){ app.innerHTML = `<div class="public-wrap"><h1 class="hero">Ups</h1><p class="sub">Esta promo no existe (o el link está mal copiado).</p></div>`; return; }
+  const now = Date.now();
+  if(campaign.endAt && new Date(campaign.endAt).getTime() < now){
+    checkAndSendIfDue(campaign);
+    app.innerHTML = `<div class="public-wrap"><h1 class="hero">Se terminó 🙈</h1><p class="expired">Esta promo ya finalizó, ¡gracias por las ganas!</p></div>`; return;
+  }
+  if(campaign.startAt && new Date(campaign.startAt).getTime() > now){
+    app.innerHTML = `<div class="public-wrap"><h1 class="hero">Todavía no arrancó</h1><p class="sub">Volvé el ${new Date(campaign.startAt).toLocaleString('es-AR')}.</p></div>`; return;
+  }
+  renderPublicView(campaign, false);
+}
+
+function startPreview(){
+  const preview = JSON.parse(JSON.stringify(currentDraft));
+  preview.__isPreview = true;
+  preview.participations = [];
+  preview.namesPool = preview.namesList ? [...preview.namesList] : [];
+  document.getElementById('whoBox').innerHTML = '';
+  renderPublicView(preview, true);
+}
+
+function renderPublicView(campaign, isPreview){
+  const app = document.getElementById('app');
+  const isNamesMode = campaign.gameType==='roulette' && campaign.rouletteMode==='names';
+  const previewBanner = isPreview ? `
+    <div style="background:#fff7e6;border:1px solid #ffd98a;color:#8a6100;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;max-width:340px;margin:0 auto 14px;">
+      👀 MODO PRUEBA — nada de esto se guarda ni se manda
+    </div>
+    <button class="cta ghost" id="backToEdit" style="margin-bottom:14px;">← Volver a editar</button>` : '';
+
+  if(isNamesMode){
+    app.innerHTML = `<div class="public-wrap">${previewBanner}<h1 class="hero">${escapeHtml(campaign.name)}</h1><p class="sub">Girá la ruleta para sortear entre la lista cargada ✨</p><div id="gameZone"></div></div>`;
+    document.getElementById('backToEdit')?.addEventListener('click', ()=>{ location.hash = currentDraft.slug ? '#/edit/'+currentDraft.editToken : '#/'; });
+    playGame(campaign, {});
+    return;
+  }
+
+  const hasTerms = (campaign.termsText||'').trim().length>0;
+
+  app.innerHTML = `
+    <div class="public-wrap">
+      ${previewBanner}
+      <h1 class="hero">${escapeHtml(campaign.name)}</h1>
+      <p class="sub">Completá tus datos y probá tu suerte ✨</p>
+      <div class="card" style="width:100%;max-width:340px;text-align:left;" id="formCard">
+        <div class="field-question">
+          <label>Tu email</label>
+          <input type="email" id="contactEmail" placeholder="tumail@ejemplo.com">
+        </div>
+        ${campaign.questions.map(q=>`<div class="field-question"><label>${escapeHtml(q.label)}</label><input type="text" data-answer="${q.id}"></div>`).join('')}
+        ${hasTerms ? `
+        <details style="margin-bottom:10px;">
+          <summary style="cursor:pointer;font-size:12px;color:var(--azul);">Ver bases y condiciones</summary>
+          <p style="font-size:12px;color:#4a6b80;white-space:pre-wrap;">${escapeHtml(campaign.termsText)}</p>
+        </details>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;font-size:13px;">
+          <input type="checkbox" id="acceptTerms" style="width:auto;"> Acepto las bases y condiciones
+        </label>` : ''}
+        <div id="formError" style="color:var(--rosa);font-size:13px;font-weight:600;margin:6px 0;"></div>
+        <button class="cta" id="goPlay" style="width:100%;margin-top:4px;">Jugar</button>
+      </div>
+      <div id="gameZone"></div>
+    </div>
+  `;
+  document.getElementById('backToEdit')?.addEventListener('click', ()=>{ location.hash = currentDraft.slug ? '#/edit/'+currentDraft.editToken : '#/'; });
+  document.getElementById('goPlay').onclick = ()=>{
+    const email = document.getElementById('contactEmail').value.trim().toLowerCase();
+    const errBox = document.getElementById('formError');
+    if(!email || !email.includes('@')){ errBox.textContent = 'Ingresá un email válido.'; return; }
+    if(!isPreview){
+      const already = campaign.participations.some(p => (p.answers?.__contactEmail||'').toLowerCase() === email);
+      if(already){ errBox.textContent = 'Ya participaste con este email — cada persona puede jugar una sola vez.'; return; }
+    }
+    if(hasTerms && !document.getElementById('acceptTerms').checked){ errBox.textContent = 'Tenés que aceptar las bases y condiciones para jugar.'; return; }
+    const answers = { __contactEmail: email };
+    campaign.questions.forEach(q=>{ answers[q.id] = document.querySelector(`[data-answer="${q.id}"]`).value; });
+    document.getElementById('formCard').style.display='none';
+    playGame(campaign, answers);
+  };
+}
+
+function playGame(campaign, answers){
+  const zone = document.getElementById('gameZone');
+  if(campaign.gameType==='roulette') renderRoulette(zone, campaign, answers);
+  else if(campaign.gameType==='scratch') renderScratch(zone, campaign, answers);
+  else renderQuiz(zone, campaign, answers);
+}
+function finishParticipation(campaign, answers, result){
+  if(campaign.__isPreview) return;
+  campaign.participations.push({answers, result, at: Date.now()});
+  saveCampaigns();
+}
+function showResult(zone, result){
+  const box = document.createElement('div');
+  box.className = 'result';
+  if(result.type==='prize') box.innerHTML = `<div style="font-size:13px;opacity:.85;">¡GANASTE!</div><h3>${escapeHtml(result.prize.name)}</h3><div style="font-size:13px;">Guardá este resultado, pronto te contactamos 🎉</div>`;
+  else if(result.type==='name') box.innerHTML = `<div style="font-size:13px;opacity:.85;">GANADOR/A</div><h3>${escapeHtml(result.name)}</h3><div style="font-size:13px;">🎉 ¡felicitaciones!</div>`;
+  else if(result.type==='empty') box.innerHTML = `<div style="font-size:13px;opacity:.85;">Sorteo</div><h3>Ya salieron todos</h3><div style="font-size:13px;">Reiniciá el sorteo desde el panel para volver a girar.</div>`;
+  else box.innerHTML = `<div style="font-size:13px;opacity:.85;">Por esta vez</div><h3>Seguí participando</h3><div style="font-size:13px;">La próxima promo puede ser la tuya ✈️</div>`;
+  zone.appendChild(box);
+  if(result.type==='prize' || result.type==='name') launchConfetti();
+}
+
+function renderRoulette(zone, campaign, answers){
+  const isNamesMode = campaign.gameType==='roulette' && campaign.rouletteMode==='names';
+  const pool = isNamesMode ? (campaign.namesPool || [...campaign.namesList]) : null;
+  const segments = isNamesMode
+    ? pool.map(n=>({label:n}))
+    : [...campaign.prizes.map(p=>({label:p.name||'Premio'})), {label:'Seguí participando', color:'#c7d7de'}];
+
+  if(isNamesMode && segments.length===0){
+    zone.innerHTML = `<div class="result"><h3>Sin candidatos</h3><div style="font-size:13px;">Ya se sorteó a todos. Reiniciá desde el panel.</div></div>`;
+    return;
+  }
+
+  zone.innerHTML = `<div class="stage" id="stage"><div class="pointer"></div><canvas id="wheel" width="280" height="280"></canvas></div><button class="cta" id="spinBtn">Girar la ruleta</button>`;
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const n = segments.length;
+  const anglePer = (2*Math.PI)/n;
+
+  function draw(rotation){
+    ctx.clearRect(0,0,280,280);
+    ctx.save(); ctx.translate(140,140); ctx.rotate(rotation);
+    for(let i=0;i<n;i++){
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,130,i*anglePer,(i+1)*anglePer); ctx.closePath();
+      ctx.fillStyle = segments[i].color || BRAND_COLORS[i%BRAND_COLORS.length];
+      ctx.fill();
+      ctx.save(); ctx.rotate(i*anglePer + anglePer/2); ctx.textAlign='right'; ctx.fillStyle='#fff'; ctx.font='700 11px Poppins';
+      ctx.fillText(String(segments[i].label).slice(0,16), 120, 4);
+      ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(0,0,26,0,2*Math.PI); ctx.fillStyle = '#002447'; ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='700 12px Bebas Neue'; ctx.textAlign='center'; ctx.fillText('ua',0,5);
+    ctx.restore();
+  }
+  draw(0);
+
+  document.getElementById('spinBtn').onclick = ()=>{
+    document.getElementById('spinBtn').disabled = true;
+    const result = isNamesMode ? drawName(campaign) : drawPrize(campaign);
+    let idx;
+    if(isNamesMode) idx = result.idx;
+    else idx = result.type==='prize' ? campaign.prizes.findIndex(p=>p.id===result.prize.id) : segments.length-1;
+    const targetAngle = (2*Math.PI) - (idx*anglePer + anglePer/2);
+    const spins = 5*2*Math.PI;
+    const total = spins + targetAngle;
+    const duration = 3200;
+    const start = performance.now();
+    function animate(t){
+      const p = Math.min(1,(t-start)/duration);
+      const ease = 1 - Math.pow(1-p,3);
+      draw(ease*total);
+      if(p<1) requestAnimationFrame(animate);
+      else{
+        document.getElementById('stage').classList.add('land');
+        finishParticipation(campaign, answers, result);
+        showResult(zone, result);
+      }
+    }
+    requestAnimationFrame(animate);
+  };
+}
+
+function renderScratch(zone, campaign, answers){
+  const result = drawPrize(campaign);
+  zone.innerHTML = `
+    <div class="scratch-wrap">
+      <div class="scratch-under">${result.type==='prize' ? '🎁 '+escapeHtml(result.prize.name) : '✈️ Seguí participando'}</div>
+      <canvas id="scratchCanvas" width="280" height="170"></canvas>
+    </div>
+    <p class="sub">Pasá el dedo o el mouse para raspar</p>
+  `;
+  const canvas = document.getElementById('scratchCanvas');
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,280,170);
+  grad.addColorStop(0,'#00C4DF'); grad.addColorStop(1,'#00528F');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,280,170);
+  ctx.fillStyle='#fff'; ctx.font='700 14px Poppins'; ctx.textAlign='center'; ctx.fillText('RASPÁ ACÁ ✦', 140, 88);
+
+  let drawing=false, revealed=0, done=false;
+  function pos(e){ const r = canvas.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x:cx,y:cy}; }
+  function scratch(e){
+    const {x,y} = pos(e);
+    ctx.globalCompositeOperation='destination-out';
+    ctx.beginPath(); ctx.arc(x,y,18,0,2*Math.PI); ctx.fill();
+    revealed++;
+    if(revealed>28 && !done){
+      done = true;
+      canvas.style.animation='none';
+      finishParticipation(campaign, answers, result);
+      setTimeout(()=>{ ctx.clearRect(0,0,280,170); showResult(zone, result); },300);
+    }
+  }
+  canvas.addEventListener('mousedown', e=>{drawing=true; scratch(e);});
+  canvas.addEventListener('mousemove', e=>{if(drawing) scratch(e);});
+  window.addEventListener('mouseup', ()=>drawing=false);
+  canvas.addEventListener('touchstart', e=>{drawing=true; scratch(e);});
+  canvas.addEventListener('touchmove', e=>{scratch(e); e.preventDefault();}, {passive:false});
+  canvas.addEventListener('touchend', ()=>drawing=false);
+}
+
+function renderQuiz(zone, campaign, answers){
+  zone.innerHTML = `
+    <div class="card" style="max-width:320px;">
+      <h2>❓ Antes de saber tu resultado...</h2>
+      <p class="sub">¿Cuál de estos destinos protege Universal Assistance?</p>
+      <button class="cta ghost quiz-btn" style="width:100%;margin-bottom:8px;" data-a="1">Todos los destinos del mundo</button>
+      <button class="cta ghost quiz-btn" style="width:100%;margin-bottom:8px;" data-a="2">Solo Argentina</button>
+      <button class="cta ghost quiz-btn" style="width:100%;" data-a="3">Solo playas</button>
+    </div>
+  `;
+  zone.querySelectorAll('[data-a]').forEach(btn=>{
+    btn.onclick = ()=>{
+      zone.innerHTML = `<div class="spinner"></div><p class="sub">Calculando tu resultado...</p>`;
+      setTimeout(()=>{
+        zone.innerHTML = '';
+        const result = drawPrize(campaign);
+        finishParticipation(campaign, answers, result);
+        showResult(zone, result);
+      }, 900);
+    };
+  });
+}
+
+function launchConfetti(){
+  const c = document.getElementById('confetti');
+  c.width = innerWidth; c.height = innerHeight;
+  const ctx = c.getContext('2d');
+  const particles = Array.from({length:120},()=>({
+    x: Math.random()*c.width, y:-20-Math.random()*200, r: 4+Math.random()*5,
+    color: BRAND_COLORS[Math.floor(Math.random()*BRAND_COLORS.length)],
+    vy: 2+Math.random()*3, vx: -1+Math.random()*2, rot: Math.random()*360
+  }));
+  let frame=0;
+  function tick(){
+    ctx.clearRect(0,0,c.width,c.height);
+    particles.forEach(p=>{
+      p.y+=p.vy; p.x+=p.vx; p.rot+=5;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle=p.color; ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.6);
+      ctx.restore();
+    });
+    frame++;
+    if(frame<140) requestAnimationFrame(tick); else ctx.clearRect(0,0,c.width,c.height);
+  }
+  tick();
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+async function boot(){
+  await loadIdentity();
+  await loadCampaigns();
+  if(me) currentDraft = newDraft();
+  route();
+}
+boot();
+</script>
+</body>
+</html>

@@ -176,6 +176,15 @@
   </nav>
 </div>
 
+<script>
+  if(location.hash.indexOf('#/play/') === 0){
+    var navEl = document.querySelector('.topbar nav');
+    var brandEl = document.querySelector('.topbar .brand');
+    if(navEl) navEl.style.display = 'none';
+    if(brandEl) brandEl.style.display = 'none';
+  }
+</script>
+
 <main id="app"></main>
 
 <!-- ============================================================
@@ -1731,6 +1740,7 @@ function showResult(zone, result, campaign){
   else if(result.type==='empty'){ tag='Sorteo'; title='Ya salieron todos'; body='Reiniciá el sorteo desde el panel para volver a girar.'; }
   else { tag='Por esta vez'; title='Seguí participando'; body=loseMsg; }
 
+  const isPreview = !!campaign?.__isPreview;
   const overlay = document.createElement('div');
   overlay.className = 'result-overlay';
   overlay.innerHTML = `
@@ -1738,13 +1748,19 @@ function showResult(zone, result, campaign){
       <div class="result-tag">${escapeHtml(tag)}</div>
       <h2>${escapeHtml(title)}</h2>
       <p>${escapeHtml(body)}</p>
-      <button class="cta" id="closeResultBtn">Cerrar</button>
+      ${isPreview ? `<button class="cta" id="closeResultBtn">← Volver a editar</button>` : ''}
     </div>
   `;
   document.body.appendChild(overlay);
   if(result.type==='prize' || result.type==='name') sound.win();
   else if(result.type==='continue') sound.lose();
-  document.getElementById('closeResultBtn').onclick = ()=> overlay.remove();
+  if(isPreview){
+    document.getElementById('closeResultBtn').onclick = ()=>{
+      overlay.remove();
+      setChromeVisible(true);
+      renderAdmin();
+    };
+  }
   if(result.type==='prize' || result.type==='name') launchConfetti();
 }
 
@@ -2009,6 +2025,7 @@ function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':
 function escapeAttr(s){ return escapeHtml(s); }
 
 async function boot(){
+  if(location.hash.startsWith('#/play/')) setChromeVisible(false);
   await loadIdentity();
   await loadCampaigns();
   if(me) currentDraft = newDraft();

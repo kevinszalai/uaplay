@@ -79,12 +79,13 @@
   details[open] > summary:not(.icon-btn):not(.menu-summary-btn)::after{transform:rotate(90deg);}
   summary.menu-summary-btn{list-style:none;}
   summary.menu-summary-btn::-webkit-details-marker{display:none;}
-  .more-menu-panel{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e3f1f4;border-radius:12px;box-shadow:0 10px 24px rgba(0,36,71,.18);padding:6px;min-width:230px;z-index:20;display:flex;flex-direction:column;gap:2px;}
-  .menu-item{background:none;border:none;text-align:left;padding:12px 12px;font-size:15px;border-radius:7px;cursor:pointer;color:var(--azul-osc);font-family:'Poppins',sans-serif;}
-  .menu-item:hover{background:#f2fbfc;}
-  .menu-item.danger{color:var(--rosa);}
+  .more-menu-panel{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e3f1f4;border-radius:12px;box-shadow:0 10px 24px rgba(0,36,71,.18);padding:8px;min-width:230px;z-index:20;display:flex;flex-direction:column;gap:6px;}
+  .menu-item{background:#fbfeff;border:1.5px solid #e3f1f4;text-align:left;padding:12px 14px;font-size:15px;border-radius:10px;cursor:pointer;color:var(--azul-osc);font-family:'Poppins',sans-serif;transition:.15s;}
+  .menu-item:hover{background:#eef7f8;border-color:var(--cyan);}
+  .menu-item.danger{color:var(--rosa);border-color:#ffd7e0;}
+  .menu-item.danger:hover{background:#fff0f4;border-color:var(--rosa);}
   .menu-item:disabled{opacity:.4;cursor:default;}
-  .menu-item:disabled:hover{background:none;}
+  .menu-item:disabled:hover{background:#fbfeff;border-color:#e3f1f4;}
   .public-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:10px;}
   .stage{position:relative;width:400px;height:400px;margin:24px auto;max-width:92vw;filter:drop-shadow(0 14px 30px rgba(0,36,71,.25));animation:idleWobble 3s ease-in-out infinite;}
   .stage.land{animation:bounceLand .5s ease;}
@@ -1368,7 +1369,7 @@ function renderList(){
               </div>
             </div>
             <details>
-              <summary style="cursor:pointer;font-size:12px;color:var(--teal);font-weight:600;">📱 Ver código QR (para stands o puntos de venta)</summary>
+              <summary style="cursor:pointer;font-size:12px;color:var(--teal);font-weight:600;">📱 Ver código QR</summary>
               <div style="text-align:center;padding:10px 0;">
                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}" width="180" height="180" alt="QR de ${escapeAttr(c.name)}" style="border-radius:10px;border:1px solid #e3f1f4;">
                 <div style="margin-top:8px;">

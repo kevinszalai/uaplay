@@ -65,6 +65,7 @@
   .item .meta{font-size:13.5px;color:#5b7c8f;}
   .badge{font-size:12.5px;font-weight:700;padding:4px 11px;border-radius:999px;}
   .badge.active{background:#e2f7ee;color:#0a8f56;}
+  .badge.paused{background:#fff3cd;color:#8a6100;}
   .badge.ended{background:#fdeaea;color:var(--rosa);}
   .badge.draft{background:#eef1f5;color:#5b7c8f;}
   .link-box{display:flex;gap:8px;align-items:center;background:#f2fbfc;border:1px dashed var(--cyan);border-radius:10px;padding:10px 12px;font-size:13px;word-break:break-all;}
@@ -213,6 +214,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyAXmkqUThp49ER3DVXs9tHLCUMnV2bIkoI",
@@ -500,7 +502,7 @@ function newDraft(){
     questions:[{id:'q1', label:'Nombre y apellido', type:'text', options:[], required:true}],
     prizes:[{id:'p1', name:'', probability:0, stock:null}],
     continueProbability: 100, namesList: [],
-    startAt:'', endAt:'', createdAt: Date.now(), participations: [], maxParticipants: null,
+    startAt:'', endAt:'', createdAt: Date.now(), participations: [], maxParticipants: null, paused: false,
     notifyEmails: [], notified:false, notifiedAt:null, termsText: '', __templateApplied:false,
     customWinMessage:'', customLoseMessage:'',
     quizQuestions: [{id:'qq1', text:'', options:[{id:'qo1',text:'',correct:false},{id:'qo2',text:'',correct:false}]}], quizTimeLimit: 10,
@@ -1327,12 +1329,18 @@ function renderList(){
   const withStatus = mineAll.map(c=>{
     const ended = c.endAt && new Date(c.endAt).getTime() < now;
     const notStarted = c.startAt && new Date(c.startAt).getTime() > now;
-    return {...c, _status: ended ? 'ended' : (notStarted ? 'draft' : 'active')};
+    let _status;
+    if(ended) _status = 'ended';
+    else if(c.paused) _status = 'paused';
+    else if(notStarted) _status = 'draft';
+    else _status = 'active';
+    return {...c, _status};
   });
   const mine = listFilter==='all' ? withStatus : withStatus.filter(c=>c._status===listFilter);
   const chips = [
     {id:'all', label:`Todas (${withStatus.length})`},
     {id:'active', label:`Activas (${withStatus.filter(c=>c._status==='active').length})`},
+    {id:'paused', label:`Pausadas (${withStatus.filter(c=>c._status==='paused').length})`},
     {id:'draft', label:`Programadas (${withStatus.filter(c=>c._status==='draft').length})`},
     {id:'ended', label:`Finalizadas (${withStatus.filter(c=>c._status==='ended').length})`},
   ];
@@ -1347,18 +1355,22 @@ function renderList(){
         mine.slice().reverse().map(c=>{
           const status = c._status;
           const ended = status==='ended';
-          const statusLabel = ended ? 'Finalizada' : (status==='draft' ? 'Programada' : 'Activa');
+          const statusLabel = ended ? 'Finalizada' : (status==='paused' ? 'Pausada' : (status==='draft' ? 'Programada' : 'Activa'));
           const link = location.origin + location.pathname + '#/play/' + c.slug;
           const editLink = location.origin + location.pathname + '#/edit/' + c.editToken;
           const isNames = c.gameType==='roulette' && c.rouletteMode==='names';
           return `
           <div class="item" style="flex-direction:column;align-items:stretch;gap:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
               <div>
                 <b>${escapeHtml(c.name)}</b>
                 <div class="meta">${GAME_TYPES.find(g=>g.id===c.gameType).label}${isNames?' · lista de nombres':''} · ${c.participations.length}${c.maxParticipants?'/'+c.maxParticipants:''} participaciones</div>
               </div>
-              <span class="badge ${status}">${statusLabel}</span>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <span class="badge ${status}">${statusLabel}</span>
+                ${!ended ? `<button class="icon-btn" data-pause="${c.id}" title="${c.paused?'Reanudar':'Pausar'}" style="width:auto;padding:0 12px;font-size:12.5px;">${c.paused?'▶️ Reanudar':'⏸️ Pausar'}</button>` : ''}
+                <button class="icon-btn" data-duplicate="${c.id}" title="Duplicar" style="width:auto;padding:0 12px;font-size:12.5px;">📄 Duplicar</button>
+              </div>
             </div>
             <p class="step-hint" style="margin:6px 0 4px;">📣 Compartí este link para que la gente participe:</p>
             <div class="link-box" style="justify-content:space-between;">
@@ -1444,6 +1456,14 @@ function renderList(){
       setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; closeMenu(btn); }, 1500);
     };
   });
+  document.querySelectorAll('[data-pause]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const c = campaigns.find(x=>x.id===btn.dataset.pause);
+      c.paused = !c.paused;
+      await saveCampaigns();
+      renderList();
+    };
+  });
   document.querySelectorAll('[data-duplicate]').forEach(btn=>{
     btn.onclick = async ()=>{
       const original = campaigns.find(c=>c.id===btn.dataset.duplicate);
@@ -1517,17 +1537,47 @@ async function downloadQr(link, filename){
   }
 }
 
+function buildParticipantsRows(campaign){
+  const isNamesMode = campaign.gameType==='roulette' && campaign.rouletteMode==='names';
+  if(isNamesMode){
+    const rows = [['Ganador/a']];
+    campaign.participations.forEach(p=>{ if(p.result?.type==='name') rows.push([p.result.name]); });
+    return rows;
+  }
+  const headers = ['Email', ...campaign.questions.map(q=>q.label), 'Resultado', 'Fecha y hora'];
+  const rows = [headers];
+  campaign.participations.forEach(p=>{
+    const resultLabel = p.result?.type==='prize' ? p.result.prize.name : (p.result?.type==='name' ? p.result.name : 'Seguí participando');
+    const fecha = p.at ? new Date(p.at).toLocaleString('es-AR') : '';
+    const row = [p.answers.__contactEmail||'', ...campaign.questions.map(q=> String(p.answers[q.id]||'')), resultLabel, fecha];
+    rows.push(row);
+  });
+  return rows;
+}
+
 function downloadCsv(campaign){
-  const csv = buildParticipantsCsv(campaign);
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = (campaign.slug||'inscriptos') + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  const rows = buildParticipantsRows(campaign);
+  if(typeof XLSX === 'undefined'){
+    showStorageWarning('⚠️ No se pudo cargar el generador de Excel, se descarga en CSV.');
+    const csv = rows.map(r=>r.map(v=>String(v).replace(/,/g,';')).join(',')).join('\n');
+    const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (campaign.slug||'inscriptos') + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const colCount = rows[0]?.length || 1;
+  ws['!cols'] = Array.from({length: colCount}, (_,i)=>{
+    let maxLen = 10;
+    rows.forEach(r=>{ const len = String(r[i]||'').length; if(len>maxLen) maxLen = len; });
+    return { wch: Math.min(maxLen + 3, 45) };
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Inscriptos');
+  XLSX.writeFile(wb, (campaign.slug||'inscriptos') + '.xlsx');
 }
 
 function buildParticipantsCsv(campaign){
@@ -1611,6 +1661,9 @@ async function renderPublic(slug){
   if(location.hash.replace('#/play/','') !== slug) return; // el usuario ya navegó a otro lado mientras cargaba
   if(!campaign){ app.innerHTML = `<div class="public-wrap"><h1 class="hero">Ups</h1><p class="sub">Esta promo no existe (o el link está mal copiado).</p></div>`; return; }
   const now = Date.now();
+  if(campaign.paused){
+    app.innerHTML = `<div class="public-wrap"><h1 class="hero">Pausada por ahora ⏸️</h1><p class="sub">Esta promo está pausada temporalmente. Volvé a intentar más tarde.</p></div>`; return;
+  }
   if(campaign.endAt && new Date(campaign.endAt).getTime() < now){
     checkAndSendIfDue(campaign);
     app.innerHTML = `<div class="public-wrap"><h1 class="hero">Se terminó 🙈</h1><p class="expired">Esta promo ya finalizó, ¡gracias por las ganas!</p></div>`; return;

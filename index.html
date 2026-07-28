@@ -1663,6 +1663,10 @@ function renderPublicView(campaign, isPreview){
           <label>Tu email *</label>
           <input type="email" id="contactEmail" placeholder="tumail@ejemplo.com">
         </div>
+        <div id="alreadyPlayedMsg" style="display:none;background:#fff3cd;color:#8a6100;border:1px solid #ffd98a;border-radius:10px;padding:12px 14px;font-size:14px;font-weight:600;margin-bottom:10px;">
+          🙌 Ya participaste — cada persona puede jugar una sola vez.
+        </div>
+        <div id="restOfForm">
         ${campaign.questions.map(q=>{
           const reqMark = q.required!==false ? ' *' : '';
           if(q.type==='list'){
@@ -1689,11 +1693,29 @@ function renderPublicView(campaign, isPreview){
         </label>` : ''}
         <div id="formError" style="color:var(--rosa);font-size:13px;font-weight:600;margin:6px 0;"></div>
         <button class="cta invite" id="goPlay" style="width:100%;margin-top:4px;">Jugar</button>
+        </div>
       </div>
       <div id="gameZone"></div>
     </div>
   `;
   document.getElementById('backToEdit')?.addEventListener('click', ()=>{ setChromeVisible(true); renderAdmin(); });
+
+  function checkAlreadyPlayed(){
+    const email = document.getElementById('contactEmail').value.trim().toLowerCase();
+    const restBox = document.getElementById('restOfForm');
+    const msgBox = document.getElementById('alreadyPlayedMsg');
+    if(isPreview || !email || !email.includes('@')){ msgBox.style.display='none'; restBox.style.display=''; return false; }
+    const already = campaign.participations.some(p => (p.answers?.__contactEmail||'').toLowerCase() === email);
+    if(already){ msgBox.style.display=''; restBox.style.display='none'; }
+    else{ msgBox.style.display='none'; restBox.style.display=''; }
+    return already;
+  }
+  document.getElementById('contactEmail').addEventListener('blur', checkAlreadyPlayed);
+  document.getElementById('contactEmail').addEventListener('input', ()=>{
+    const msgBox = document.getElementById('alreadyPlayedMsg');
+    if(msgBox.style.display!=='none'){ msgBox.style.display='none'; document.getElementById('restOfForm').style.display=''; }
+  });
+
   document.getElementById('goPlay').onclick = ()=>{
     sound.click();
     const email = document.getElementById('contactEmail').value.trim().toLowerCase();
@@ -1701,7 +1723,7 @@ function renderPublicView(campaign, isPreview){
     if(!email || !email.includes('@')){ errBox.textContent = 'Ingresá un email válido.'; return; }
     if(!isPreview){
       const already = campaign.participations.some(p => (p.answers?.__contactEmail||'').toLowerCase() === email);
-      if(already){ errBox.textContent = 'Ya participaste con este email — cada persona puede jugar una sola vez.'; return; }
+      if(already){ checkAlreadyPlayed(); return; }
     }
     if(hasTerms && !document.getElementById('acceptTerms').checked){ errBox.textContent = 'Tenés que aceptar las bases y condiciones para jugar.'; return; }
 
@@ -2057,8 +2079,8 @@ async function boot(){
   if(me) currentDraft = newDraft();
   route();
   const hash = location.hash;
-  const isPublicRoute = hash.startsWith('#/play/') || hash.startsWith('#/edit/');
-  if(me && !isPublicRoute) openHelp();
+  const isHomeRoute = hash === '#/' || hash === '';
+  if(me && isHomeRoute) openHelp();
 }
 boot();
 </script>

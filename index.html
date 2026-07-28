@@ -1734,8 +1734,8 @@ async function sendViaWeb3Forms(campaign, accessKey){
   formData.append('attachment', fileBlob, (campaign.slug||'inscriptos')+'.xlsx');
 
   const res = await fetch('https://api.web3forms.com/submit', { method:'POST', body: formData });
-  const data = await res.json().catch(()=>({success:false}));
-  return !!data.success;
+  const data = await res.json().catch(()=>({success:false, message:'respuesta no válida (status '+res.status+')'}));
+  return { ok: !!data.success, message: data.message || (res.ok ? '' : 'HTTP '+res.status) };
 }
 
 async function sendParticipantsEmail(campaign){
@@ -1745,10 +1745,10 @@ async function sendParticipantsEmail(campaign){
   if(method==='web3forms'){
     if(!sendCfg?.web3formsKey) return;
     try{
-      const ok = await sendViaWeb3Forms(campaign, sendCfg.web3formsKey);
-      if(ok){ campaign.notified = true; campaign.notifiedAt = Date.now(); await saveCampaigns(); }
-      else showStorageWarning('⚠️ Web3Forms no confirmó el envío — revisá la access key.');
-    }catch(e){ showStorageWarning('⚠️ No se pudo enviar por Web3Forms.'); }
+      const result = await sendViaWeb3Forms(campaign, sendCfg.web3formsKey);
+      if(result.ok){ campaign.notified = true; campaign.notifiedAt = Date.now(); await saveCampaigns(); }
+      else showStorageWarning('⚠️ Web3Forms: ' + (result.message || 'no confirmó el envío, revisá la access key.'));
+    }catch(e){ showStorageWarning('⚠️ No se pudo enviar por Web3Forms: ' + (e.message||e)); }
     return;
   }
 

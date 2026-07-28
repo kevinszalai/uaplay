@@ -392,6 +392,19 @@ async function loadCampaigns(){
     campaigns = snap.docs.map(doc=>doc.data());
   }catch(e){ campaigns = []; showStorageWarning('⚠️ No se pudieron cargar las campañas desde la base de datos.'); }
 }
+async function loadCampaignBySlug(slug){
+  const existing = campaigns.find(c=>c.slug===slug);
+  if(existing) return existing;
+  const ok = await initFirebase();
+  if(!ok) return null;
+  try{
+    const snap = await db.collection('campaigns').where('slug','==',slug).limit(1).get();
+    if(snap.empty) return null;
+    const data = snap.docs[0].data();
+    campaigns.push(data);
+    return data;
+  }catch(e){ showStorageWarning('⚠️ No se pudo cargar la promo.'); return null; }
+}
 function showStorageWarning(msg){
   if(document.getElementById('storageWarning')) return;
   const div = document.createElement('div');
@@ -1584,10 +1597,12 @@ function drawName(campaign){
   return {type:'name', name:winner, idx};
 }
 
-function renderPublic(slug){
+async function renderPublic(slug){
   const app = document.getElementById('app');
   document.getElementById('whoBox').innerHTML = '';
-  const campaign = campaigns.find(c=>c.slug===slug);
+  app.innerHTML = `<div class="public-wrap"><div class="spinner"></div><p class="sub">Cargando...</p></div>`;
+  const campaign = await loadCampaignBySlug(slug);
+  if(location.hash.replace('#/play/','') !== slug) return; // el usuario ya navegó a otro lado mientras cargaba
   if(!campaign){ app.innerHTML = `<div class="public-wrap"><h1 class="hero">Ups</h1><p class="sub">Esta promo no existe (o el link está mal copiado).</p></div>`; return; }
   const now = Date.now();
   if(campaign.endAt && new Date(campaign.endAt).getTime() < now){
@@ -2025,7 +2040,12 @@ function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':
 function escapeAttr(s){ return escapeHtml(s); }
 
 async function boot(){
-  if(location.hash.startsWith('#/play/')) setChromeVisible(false);
+  const startHash = location.hash;
+  if(startHash.startsWith('#/play/')){
+    setChromeVisible(false);
+    route();
+    return;
+  }
   await loadIdentity();
   await loadCampaigns();
   if(me) currentDraft = newDraft();

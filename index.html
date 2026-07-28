@@ -612,13 +612,29 @@ function renderAdminPanel(){
     </div>
 
     <div class="card">
-      <h2>⚙️ Configuración global de envío (EmailJS)</h2>
+      <h2>⚙️ Configuración global de envío</h2>
       <p class="step-hint">Se configura acá una sola vez y sirve para todas las campañas de todos los comerciales — a ellos no les aparece esta pantalla.</p>
-      <label>Service ID</label><input type="text" id="cfgService" placeholder="service_xxxx">
-      <label>Template ID</label><input type="text" id="cfgTemplate" placeholder="template_xxxx">
-      <label>Public Key</label><input type="text" id="cfgKey" placeholder="tu public key">
-      <button class="add-btn" id="cfgSave" style="margin-top:8px;">Guardar credenciales</button>
-      <span id="cfgSavedFlash" style="font-size:12px;color:var(--teal);margin-left:8px;"></span>
+
+      <label>¿Cómo se manda el archivo de inscriptos?</label>
+      <div class="mode-toggle">
+        <div class="mode-opt" data-sendmethod="emailjs" id="sendMethodEmailjs">📧 EmailJS<br><span style="font-weight:400;font-size:11px;">tabla dentro del cuerpo del mail</span></div>
+        <div class="mode-opt" data-sendmethod="web3forms" id="sendMethodWeb3Forms">📎 Web3Forms<br><span style="font-weight:400;font-size:11px;">Excel adjunto de verdad</span></div>
+      </div>
+
+      <div id="emailjsFields" style="margin-top:14px;">
+        <label>Service ID</label><input type="text" id="cfgService" placeholder="service_xxxx">
+        <label>Template ID</label><input type="text" id="cfgTemplate" placeholder="template_xxxx">
+        <label>Public Key</label><input type="text" id="cfgKey" placeholder="tu public key">
+        <button class="add-btn" id="cfgSave" style="margin-top:8px;">Guardar credenciales</button>
+        <span id="cfgSavedFlash" style="font-size:12px;color:var(--teal);margin-left:8px;"></span>
+      </div>
+
+      <div id="web3formsFields" style="margin-top:14px;">
+        <p class="step-hint">Creá una cuenta gratis en <b>web3forms.com</b>, generá tu Access Key y pegala acá.</p>
+        <label>Access Key</label><input type="text" id="cfgWeb3Key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+        <button class="add-btn" id="cfgWeb3Save" style="margin-top:8px;">Guardar Access Key</button>
+        <span id="cfgWeb3SavedFlash" style="font-size:12px;color:var(--teal);margin-left:8px;"></span>
+      </div>
     </div>
 
     <div class="card">
@@ -627,6 +643,33 @@ function renderAdminPanel(){
       <div id="adminCampaignList"></div>
     </div>
   `;
+
+  let currentSendMethod = 'emailjs';
+  getSendConfig().then(cfg=>{
+    currentSendMethod = cfg?.sendMethod || 'emailjs';
+    updateSendMethodUI();
+    if(cfg?.web3formsKey) document.getElementById('cfgWeb3Key').value = cfg.web3formsKey;
+  });
+  function updateSendMethodUI(){
+    document.getElementById('sendMethodEmailjs').classList.toggle('sel', currentSendMethod==='emailjs');
+    document.getElementById('sendMethodWeb3Forms').classList.toggle('sel', currentSendMethod==='web3forms');
+    document.getElementById('emailjsFields').style.display = currentSendMethod==='emailjs' ? '' : 'none';
+    document.getElementById('web3formsFields').style.display = currentSendMethod==='web3forms' ? '' : 'none';
+  }
+  document.querySelectorAll('[data-sendmethod]').forEach(el=>{
+    el.onclick = async ()=>{
+      currentSendMethod = el.dataset.sendmethod;
+      updateSendMethodUI();
+      await saveSendMethod(currentSendMethod, document.getElementById('cfgWeb3Key').value.trim());
+    };
+  });
+  document.getElementById('cfgWeb3Save').onclick = async ()=>{
+    const key = document.getElementById('cfgWeb3Key').value.trim();
+    await saveSendMethod(currentSendMethod, key);
+    const flash = document.getElementById('cfgWeb3SavedFlash');
+    flash.textContent = 'Guardado ✓';
+    setTimeout(()=>{ flash.textContent=''; }, 2000);
+  };
 
   getEmailjsConfig().then(cfg=>{
     if(cfg){
@@ -1518,6 +1561,18 @@ async function saveEmailjsConfig(cfg){
   if(!ok) return;
   try{ await db.collection('config').doc('app').set({emailjs:cfg}, {merge:true}); }catch(e){ showStorageWarning('⚠️ No se pudo guardar la config de EmailJS.'); }
 }
+async function getSendConfig(){
+  const ok = await initFirebase();
+  if(!ok) return null;
+  try{ const doc = await db.collection('config').doc('app').get(); const data = doc.data(); return data || null; }
+  catch(e){ return null; }
+}
+async function saveSendMethod(method, web3formsKey){
+  const ok = await initFirebase();
+  if(!ok) return;
+  try{ await db.collection('config').doc('app').set({sendMethod: method, web3formsKey: web3formsKey||''}, {merge:true}); }
+  catch(e){ showStorageWarning('⚠️ No se pudo guardar la configuración de envío.'); }
+}
 
 async function downloadQr(link, filename){
   const url = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(link)}`;
@@ -1606,10 +1661,100 @@ async function checkAndSendIfDue(campaign){
   await sendParticipantsEmail(campaign);
 }
 
+function buildEmailSubject(campaign){
+  const count = campaign.participations.length;
+  return `🎉 Resultados de "${campaign.name}" — ${count} participante${count===1?'':'s'}`;
+}
+
+function buildParticipantsHtmlTable(campaign){
+  const rows = buildParticipantsRows(campaign);
+  if(rows.length<=1){
+    return `<p style="font-family:Arial,sans-serif;font-size:14px;color:#5b7c8f;">Todavía no hay inscriptos registrados.</p>`;
+  }
+  const [headers, ...body] = rows;
+  const esc = s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `
+<table style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:13px;color:#002447;">
+  <thead>
+    <tr style="background:#00528F;">
+      ${headers.map(h=>`<th style="padding:8px 12px;text-align:left;color:#ffffff;border:1px solid #00528F;">${esc(h)}</th>`).join('')}
+    </tr>
+  </thead>
+  <tbody>
+    ${body.map((r,i)=>`
+    <tr style="background:${i%2===0?'#f2fbfc':'#ffffff'};">
+      ${r.map(v=>`<td style="padding:7px 12px;border:1px solid #e3f1f4;">${esc(v)}</td>`).join('')}
+    </tr>`).join('')}
+  </tbody>
+</table>`;
+}
+
+function buildEmailBodyHtml(campaign){
+  const count = campaign.participations.length;
+  const table = buildParticipantsHtmlTable(campaign);
+  return `
+<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;">
+  <div style="background:linear-gradient(120deg,#002447,#00528F);padding:22px 26px;border-radius:14px 14px 0 0;">
+    <div style="color:#ffffff;font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.85;">UA Play</div>
+    <div style="color:#ffffff;font-size:22px;font-weight:800;margin-top:2px;">🎉 Resultados de tu promo</div>
+  </div>
+  <div style="background:#ffffff;padding:26px;border:1px solid #e3f1f4;border-top:none;border-radius:0 0 14px 14px;">
+    <h2 style="color:#002447;margin:0 0 6px;font-size:20px;">"${campaign.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}"</h2>
+    <p style="color:#4a6b80;font-size:14px;margin:0 0 20px;">Finalizó con <b>${count}</b> participante${count===1?'':'s'}. Acá está el detalle de quién jugó y qué ganó:</p>
+    ${table}
+    <p style="color:#93aab8;font-size:12px;margin-top:24px;">Este mail se generó y se envió solo, sin que nadie tenga que hacer nada — es la magia de UA Play. 🚀</p>
+  </div>
+</div>`;
+}
+
+function buildEmailBodyText(campaign){
+  const count = campaign.participations.length;
+  return `UA Play — Resultados de tu promo\n\n"${campaign.name}" finalizó con ${count} participante${count===1?'':'s'}.\n\nEl detalle completo de quién jugó y qué ganó está adjunto en el Excel.\n\nEste mail se generó y se envió solo, sin que nadie tenga que hacer nada.`;
+}
+
+async function sendViaWeb3Forms(campaign, accessKey){
+  const rows = buildParticipantsRows(campaign);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const colCount = rows[0]?.length || 1;
+  ws['!cols'] = Array.from({length: colCount}, (_,i)=>{
+    let maxLen = 10;
+    rows.forEach(r=>{ const len = String(r[i]||'').length; if(len>maxLen) maxLen = len; });
+    return { wch: Math.min(maxLen + 3, 45) };
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Inscriptos');
+  const xlsxArray = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+  const fileBlob = new Blob([xlsxArray], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+
+  const formData = new FormData();
+  formData.append('access_key', accessKey);
+  formData.append('subject', buildEmailSubject(campaign));
+  formData.append('from_name', 'UA Play');
+  formData.append('message', buildEmailBodyText(campaign));
+  formData.append('attachment', fileBlob, (campaign.slug||'inscriptos')+'.xlsx');
+
+  const res = await fetch('https://api.web3forms.com/submit', { method:'POST', body: formData });
+  const data = await res.json().catch(()=>({success:false}));
+  return !!data.success;
+}
+
 async function sendParticipantsEmail(campaign){
+  const sendCfg = await getSendConfig();
+  const method = sendCfg?.sendMethod || 'emailjs';
+
+  if(method==='web3forms'){
+    if(!sendCfg?.web3formsKey) return;
+    try{
+      const ok = await sendViaWeb3Forms(campaign, sendCfg.web3formsKey);
+      if(ok){ campaign.notified = true; campaign.notifiedAt = Date.now(); await saveCampaigns(); }
+      else showStorageWarning('⚠️ Web3Forms no confirmó el envío — revisá la access key.');
+    }catch(e){ showStorageWarning('⚠️ No se pudo enviar por Web3Forms.'); }
+    return;
+  }
+
   const cfg = await getEmailjsConfig();
   if(!cfg || !cfg.serviceId || !cfg.templateId || !cfg.publicKey) return;
-  const csv = buildParticipantsCsv(campaign);
+  const csv = buildEmailBodyHtml(campaign);
   const recipients = getFullNotifyList(campaign);
   try{
     let allOk = true;
@@ -1623,6 +1768,7 @@ async function sendParticipantsEmail(campaign){
           user_id: cfg.publicKey,
           template_params:{
             to_email: to,
+            subject: buildEmailSubject(campaign),
             campaign_name: campaign.name,
             participants_count: campaign.participations.length,
             participants_csv: csv

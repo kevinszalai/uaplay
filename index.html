@@ -618,7 +618,8 @@ function renderAdminPanel(){
       <label>¿Cómo se manda el archivo de inscriptos?</label>
       <div class="mode-toggle">
         <div class="mode-opt" data-sendmethod="emailjs" id="sendMethodEmailjs">📧 EmailJS<br><span style="font-weight:400;font-size:11px;">tabla dentro del cuerpo del mail</span></div>
-        <div class="mode-opt" data-sendmethod="web3forms" id="sendMethodWeb3Forms">📎 Web3Forms<br><span style="font-weight:400;font-size:11px;">Excel adjunto de verdad</span></div>
+        <div class="mode-opt" data-sendmethod="web3forms" id="sendMethodWeb3Forms">📎 Web3Forms<br><span style="font-weight:400;font-size:11px;">Excel adjunto (plan pago)</span></div>
+        <div class="mode-opt" data-sendmethod="formspree" id="sendMethodFormspree">📄 Formspree<br><span style="font-weight:400;font-size:11px;">Excel adjunto</span></div>
       </div>
 
       <div id="emailjsFields" style="margin-top:14px;">
@@ -630,10 +631,17 @@ function renderAdminPanel(){
       </div>
 
       <div id="web3formsFields" style="margin-top:14px;">
-        <p class="step-hint">Creá una cuenta gratis en <b>web3forms.com</b>, generá tu Access Key y pegala acá.</p>
+        <p class="step-hint">Requiere plan pago de web3forms.com para adjuntos. Pegá tu Access Key acá.</p>
         <label>Access Key</label><input type="text" id="cfgWeb3Key" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
         <button class="add-btn" id="cfgWeb3Save" style="margin-top:8px;">Guardar Access Key</button>
         <span id="cfgWeb3SavedFlash" style="font-size:12px;color:var(--teal);margin-left:8px;"></span>
+      </div>
+
+      <div id="formspreeFields" style="margin-top:14px;">
+        <p class="step-hint">Creá un formulario en <b>formspree.io</b> y pegá acá el Form ID (o la URL completa del endpoint).</p>
+        <label>Form ID (o URL completa)</label><input type="text" id="cfgFormspreeId" placeholder="xxxxxxxx o https://formspree.io/f/xxxxxxxx">
+        <button class="add-btn" id="cfgFormspreeSave" style="margin-top:8px;">Guardar Form ID</button>
+        <span id="cfgFormspreeSavedFlash" style="font-size:12px;color:var(--teal);margin-left:8px;"></span>
       </div>
     </div>
 
@@ -649,24 +657,36 @@ function renderAdminPanel(){
     currentSendMethod = cfg?.sendMethod || 'emailjs';
     updateSendMethodUI();
     if(cfg?.web3formsKey) document.getElementById('cfgWeb3Key').value = cfg.web3formsKey;
+    if(cfg?.formspreeId) document.getElementById('cfgFormspreeId').value = cfg.formspreeId;
   });
   function updateSendMethodUI(){
     document.getElementById('sendMethodEmailjs').classList.toggle('sel', currentSendMethod==='emailjs');
     document.getElementById('sendMethodWeb3Forms').classList.toggle('sel', currentSendMethod==='web3forms');
+    document.getElementById('sendMethodFormspree').classList.toggle('sel', currentSendMethod==='formspree');
     document.getElementById('emailjsFields').style.display = currentSendMethod==='emailjs' ? '' : 'none';
     document.getElementById('web3formsFields').style.display = currentSendMethod==='web3forms' ? '' : 'none';
+    document.getElementById('formspreeFields').style.display = currentSendMethod==='formspree' ? '' : 'none';
   }
   document.querySelectorAll('[data-sendmethod]').forEach(el=>{
     el.onclick = async ()=>{
       currentSendMethod = el.dataset.sendmethod;
       updateSendMethodUI();
-      await saveSendMethod(currentSendMethod, document.getElementById('cfgWeb3Key').value.trim());
+      const extra = currentSendMethod==='web3forms' ? document.getElementById('cfgWeb3Key').value.trim()
+        : currentSendMethod==='formspree' ? document.getElementById('cfgFormspreeId').value.trim() : '';
+      await saveSendMethod(currentSendMethod, extra);
     };
   });
   document.getElementById('cfgWeb3Save').onclick = async ()=>{
     const key = document.getElementById('cfgWeb3Key').value.trim();
     await saveSendMethod(currentSendMethod, key);
     const flash = document.getElementById('cfgWeb3SavedFlash');
+    flash.textContent = 'Guardado ✓';
+    setTimeout(()=>{ flash.textContent=''; }, 2000);
+  };
+  document.getElementById('cfgFormspreeSave').onclick = async ()=>{
+    const id = document.getElementById('cfgFormspreeId').value.trim();
+    await saveSendMethod(currentSendMethod, id);
+    const flash = document.getElementById('cfgFormspreeSavedFlash');
     flash.textContent = 'Guardado ✓';
     setTimeout(()=>{ flash.textContent=''; }, 2000);
   };
@@ -1567,10 +1587,15 @@ async function getSendConfig(){
   try{ const doc = await db.collection('config').doc('app').get(); const data = doc.data(); return data || null; }
   catch(e){ return null; }
 }
-async function saveSendMethod(method, web3formsKey){
+async function saveSendMethod(method, extra){
   const ok = await initFirebase();
   if(!ok) return;
-  try{ await db.collection('config').doc('app').set({sendMethod: method, web3formsKey: web3formsKey||''}, {merge:true}); }
+  try{
+    const payload = {sendMethod: method};
+    if(method==='web3forms') payload.web3formsKey = extra||'';
+    if(method==='formspree') payload.formspreeId = extra||'';
+    await db.collection('config').doc('app').set(payload, {merge:true});
+  }
   catch(e){ showStorageWarning('⚠️ No se pudo guardar la configuración de envío.'); }
 }
 
@@ -1712,7 +1737,7 @@ function buildEmailBodyText(campaign){
   return `UA Play — Resultados de tu promo\n\n"${campaign.name}" finalizó con ${count} participante${count===1?'':'s'}.\n\nEl detalle completo de quién jugó y qué ganó está adjunto en el Excel.\n\nEste mail se generó y se envió solo, sin que nadie tenga que hacer nada.`;
 }
 
-async function sendViaWeb3Forms(campaign, accessKey){
+function buildXlsxBlob(campaign){
   const rows = buildParticipantsRows(campaign);
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const colCount = rows[0]?.length || 1;
@@ -1724,7 +1749,11 @@ async function sendViaWeb3Forms(campaign, accessKey){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Inscriptos');
   const xlsxArray = XLSX.write(wb, {type:'array', bookType:'xlsx'});
-  const fileBlob = new Blob([xlsxArray], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  return new Blob([xlsxArray], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+async function sendViaWeb3Forms(campaign, accessKey){
+  const fileBlob = buildXlsxBlob(campaign);
 
   const formData = new FormData();
   formData.append('access_key', accessKey);
@@ -1738,6 +1767,31 @@ async function sendViaWeb3Forms(campaign, accessKey){
   return { ok: !!data.success, message: data.message || (res.ok ? '' : 'HTTP '+res.status) };
 }
 
+async function sendViaFormspree(campaign, formEndpoint){
+  const fileBlob = buildXlsxBlob(campaign);
+  const endpoint = formEndpoint.startsWith('http') ? formEndpoint : `https://formspree.io/f/${formEndpoint}`;
+
+  const recipients = getFullNotifyList(campaign);
+  let allOk = true;
+  let lastMessage = '';
+  for(const to of recipients){
+    const formData = new FormData();
+    formData.append('email', to);
+    formData.append('_subject', buildEmailSubject(campaign));
+    formData.append('message', buildEmailBodyText(campaign));
+    formData.append('attachment', fileBlob, (campaign.slug||'inscriptos')+'.xlsx');
+    try{
+      const res = await fetch(endpoint, { method:'POST', headers:{'Accept':'application/json'}, body: formData });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok){
+        allOk = false;
+        lastMessage = (data.errors ? data.errors.map(e=>e.message).join('; ') : '') || ('HTTP '+res.status);
+      }
+    }catch(e){ allOk = false; lastMessage = e.message||String(e); }
+  }
+  return { ok: allOk, message: lastMessage };
+}
+
 async function sendParticipantsEmail(campaign){
   const sendCfg = await getSendConfig();
   const method = sendCfg?.sendMethod || 'emailjs';
@@ -1749,6 +1803,16 @@ async function sendParticipantsEmail(campaign){
       if(result.ok){ campaign.notified = true; campaign.notifiedAt = Date.now(); await saveCampaigns(); }
       else showStorageWarning('⚠️ Web3Forms: ' + (result.message || 'no confirmó el envío, revisá la access key.'));
     }catch(e){ showStorageWarning('⚠️ No se pudo enviar por Web3Forms: ' + (e.message||e)); }
+    return;
+  }
+
+  if(method==='formspree'){
+    if(!sendCfg?.formspreeId) return;
+    try{
+      const result = await sendViaFormspree(campaign, sendCfg.formspreeId);
+      if(result.ok){ campaign.notified = true; campaign.notifiedAt = Date.now(); await saveCampaigns(); }
+      else showStorageWarning('⚠️ Formspree: ' + (result.message || 'no confirmó el envío, revisá el Form ID.'));
+    }catch(e){ showStorageWarning('⚠️ No se pudo enviar por Formspree: ' + (e.message||e)); }
     return;
   }
 

@@ -73,10 +73,12 @@
   .more-menu{position:relative;}
   .more-menu summary{list-style:none;}
   .more-menu summary::-webkit-details-marker{display:none;}
-  summary:not(.icon-btn){list-style:none;display:flex;align-items:center;gap:8px;}
-  summary:not(.icon-btn)::-webkit-details-marker{display:none;}
-  summary:not(.icon-btn)::after{content:'▸';font-size:13px;margin-left:auto;transition:transform .2s;flex-shrink:0;}
-  details[open] > summary:not(.icon-btn)::after{transform:rotate(90deg);}
+  summary:not(.icon-btn):not(.menu-summary-btn){list-style:none;display:flex;align-items:center;gap:8px;}
+  summary:not(.icon-btn):not(.menu-summary-btn)::-webkit-details-marker{display:none;}
+  summary:not(.icon-btn):not(.menu-summary-btn)::after{content:'▸';font-size:13px;margin-left:auto;transition:transform .2s;flex-shrink:0;}
+  details[open] > summary:not(.icon-btn):not(.menu-summary-btn)::after{transform:rotate(90deg);}
+  summary.menu-summary-btn{list-style:none;}
+  summary.menu-summary-btn::-webkit-details-marker{display:none;}
   .more-menu-panel{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e3f1f4;border-radius:12px;box-shadow:0 10px 24px rgba(0,36,71,.18);padding:6px;min-width:230px;z-index:20;display:flex;flex-direction:column;gap:2px;}
   .menu-item{background:none;border:none;text-align:left;padding:12px 12px;font-size:15px;border-radius:7px;cursor:pointer;color:var(--azul-osc);font-family:'Poppins',sans-serif;}
   .menu-item:hover{background:#f2fbfc;}
@@ -811,8 +813,10 @@ function renderAdmin(){
 
     ${editing ? `
     <div class="card" style="padding:14px 22px;">
-      <div class="link-box" style="margin-bottom:8px;">🔗 Link público: ${location.origin + location.pathname + '#/play/' + d.slug}</div>
-      <div class="link-box">✏️ Link de edición (para colaborar): ${location.origin + location.pathname + '#/edit/' + d.editToken}</div>
+      <p class="step-hint" style="margin:0 0 6px;">📣 Este es el link para que la gente participe:</p>
+      <div class="link-box" style="margin-bottom:8px;">${location.origin + location.pathname + '#/play/' + d.slug}</div>
+      <p class="step-hint" style="margin:0 0 6px;">✏️ Este otro es solo para invitar a alguien a editar esta campaña con vos:</p>
+      <div class="link-box">${location.origin + location.pathname + '#/edit/' + d.editToken}</div>
     </div>` : ''}
 
     <div class="card">
@@ -1355,8 +1359,9 @@ function renderList(){
               </div>
               <span class="badge ${status}">${statusLabel}</span>
             </div>
+            <p class="step-hint" style="margin:6px 0 4px;">📣 Compartí este link para que la gente participe:</p>
             <div class="link-box" style="justify-content:space-between;">
-              <a href="${link}" target="_blank" rel="noopener" style="overflow-wrap:anywhere;color:var(--azul);text-decoration:underline;">🔗 ${link}</a>
+              <a href="${link}" target="_blank" rel="noopener" style="overflow-wrap:anywhere;color:var(--azul);text-decoration:underline;">${link}</a>
               <div style="display:flex;gap:6px;flex-shrink:0;">
                 <button class="icon-btn" data-copy="${link}" title="Copiar link">📋</button>
                 <a class="icon-btn" href="https://wa.me/?text=${encodeURIComponent('¡Participá! ' + link)}" target="_blank" rel="noopener" title="Compartir por WhatsApp">💬</a>
@@ -1376,15 +1381,15 @@ function renderList(){
                 ? (c.notified ? `📧 Datos enviados el ${new Date(c.notifiedAt).toLocaleString('es-AR')}` : `📧 Pendiente de enviar — se manda solo apenas se detecte que finalizó`)
                 : `📧 Los datos se enviarán automáticamente al finalizar`}
             </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <button class="cta ghost" data-edit="${c.editToken}" style="padding:6px 14px;font-size:12px;">✏️ Editar${ended ? ' / reactivar' : ''}</button>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="cta" data-edit="${c.editToken}" style="background:var(--azul);box-shadow:0 6px 16px rgba(0,82,143,.3);">✏️ Editar${ended ? ' / reactivar' : ''}</button>
               <details class="more-menu">
-                <summary class="icon-btn" style="width:auto;padding:0 10px;height:32px;">⋮ más opciones</summary>
+                <summary class="cta ghost menu-summary-btn">⋮ Más opciones</summary>
                 <div class="more-menu-panel">
                   ${isNames ? `<button class="menu-item" data-reset="${c.id}">↺ Reiniciar sorteo (${(c.namesPool||[]).length}/${c.namesList.length} sin salir)</button>` : ''}
                   <button class="menu-item" data-downloadcsv="${c.id}" ${c.participations.length===0?'disabled':''}>⬇️ Descargar datos (Excel)</button>
                   <button class="menu-item" data-resend="${c.id}" ${c.participations.length===0?'disabled':''}>📧 Reenviar por email</button>
-                  <button class="menu-item" data-copy="${editLink}">✏️ Copiar link de edición (colaborar)</button>
+                  <button class="menu-item" data-copy="${editLink}">✏️ Copiar link para invitar a editar</button>
                   <button class="menu-item" data-duplicate="${c.id}">📄 Duplicar campaña</button>
                   <button class="menu-item danger" data-delete="${c.id}">🗑️ Borrar campaña</button>
                 </div>
@@ -1740,10 +1745,10 @@ function playGame(campaign, answers){
   else if(campaign.gameType==='scratch') renderScratch(zone, campaign, answers);
   else renderQuiz(zone, campaign, answers);
 }
-function finishParticipation(campaign, answers, result){
+async function finishParticipation(campaign, answers, result){
   if(campaign.__isPreview) return;
   campaign.participations.push({answers, result, at: Date.now()});
-  saveCampaigns();
+  await saveCampaigns();
 }
 function showResult(zone, result, campaign){
   const winMsg = (campaign?.customWinMessage||'').trim() || 'Guardá este resultado, pronto te contactamos 🎉';
@@ -1839,7 +1844,7 @@ function renderRoulette(zone, campaign, answers){
     const duration = 3200;
     const start = performance.now();
     let lastSegment = -1;
-    function animate(t){
+    async function animate(t){
       const p = Math.min(1,(t-start)/duration);
       const ease = 1 - Math.pow(1-p,3);
       const rotation = ease*total;
@@ -1855,7 +1860,7 @@ function renderRoulette(zone, campaign, answers){
           stageEl.style.animation = '';
           stageEl.classList.add('land');
         }, 400);
-        finishParticipation(campaign, answers, result);
+        await finishParticipation(campaign, answers, result);
         showResult(zone, result, campaign);
       }
     }
@@ -1891,7 +1896,7 @@ function renderScratch(zone, campaign, answers){
     }
     return total ? (cleared/total)*100 : 0;
   }
-  function scratch(e){
+  async function scratch(e){
     const {x,y} = pos(e);
     ctx.globalCompositeOperation='destination-out';
     ctx.beginPath(); ctx.arc(x,y,20,0,2*Math.PI); ctx.fill();
@@ -1910,7 +1915,7 @@ function renderScratch(zone, campaign, answers){
       done = true;
       canvas.style.animation='none';
       wrap.style.animation='none';
-      finishParticipation(campaign, answers, result);
+      await finishParticipation(campaign, answers, result);
       setTimeout(()=>{ ctx.clearRect(0,0,340,210); showResult(zone, result, campaign); },300);
     }
   }
@@ -1939,7 +1944,7 @@ function renderQuiz(zone, campaign, answers){
     qIndex++;
     if(qIndex < questions.length){ showQuestion(); return; }
     zone.innerHTML = `<div class="spinner"></div><p class="sub">Calculando tu resultado...</p>`;
-    setTimeout(()=>{
+    setTimeout(async ()=>{
       zone.innerHTML = '';
       let eligible;
       if(campaign.quizPassMode==='count'){
@@ -1950,7 +1955,7 @@ function renderQuiz(zone, campaign, answers){
       }
       if(!eligible){
         const result = {type:'continue'};
-        finishParticipation(campaign, answers, result);
+        await finishParticipation(campaign, answers, result);
         showResult(zone, result, campaign);
         return;
       }
@@ -1963,7 +1968,7 @@ function renderQuiz(zone, campaign, answers){
         return;
       }
       const result = drawPrize(campaign);
-      finishParticipation(campaign, answers, result);
+      await finishParticipation(campaign, answers, result);
       showResult(zone, result, campaign);
     }, 900);
   }

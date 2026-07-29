@@ -941,11 +941,11 @@ function renderAdmin(){
     <p class="sub">${editing ? 'Cambiá lo que necesites — el link público no cambia, así que sigue funcionando aunque hayas reactivado fechas vencidas.' : 'Elegí el juego, cargá las preguntas, los premios y listo — generás el link para compartir.'}</p>
 
     ${editing ? `
-    <div class="card" style="padding:14px 22px;">
-      <p class="step-hint" style="margin:0 0 6px;">📣 Este es el link para que la gente participe:</p>
-      <div class="link-box" style="margin-bottom:8px;">${location.origin + location.pathname + '#/play/' + d.slug}</div>
-      <p class="step-hint" style="margin:0 0 6px;">✏️ Este otro es solo para invitar a alguien a editar esta campaña con vos:</p>
-      <div class="link-box">${location.origin + location.pathname + '#/edit/' + d.editToken}</div>
+    <div class="card" style="padding:20px 22px;text-align:center;">
+      <p class="step-hint" style="margin:0 0 6px;text-align:left;">📣 Este es el link para que las personas participen (siempre es el mismo, aunque edites la campaña):</p>
+      ${buildShareBlockHtml(location.origin + location.pathname + '#/play/' + d.slug, 'editform')}
+      <p class="step-hint" style="margin:14px 0 6px;text-align:left;">✏️ Link para invitar a colaborar en esta campaña:</p>
+      <div class="link-box" style="text-align:left;">${location.origin + location.pathname + '#/edit/' + d.editToken}</div>
     </div>` : ''}
 
     <div class="card">
@@ -1149,6 +1149,7 @@ function renderAdmin(){
   const addP = document.getElementById('addPrize');
   if(addP) addP.onclick = ()=>{ d.prizes.push({id:'p'+Date.now(), name:'', probability:0, stock:null}); renderAdmin(); };
   document.getElementById('publishBtn').onclick = editing ? saveEdits : publishCampaign;
+  if(editing) wireShareBlock('editform', location.origin + location.pathname + '#/play/' + d.slug, d.name);
   document.getElementById('previewBtn').onclick = startPreview;
 
   renderExtraEmails();
@@ -1388,6 +1389,30 @@ async function publishCampaign(){
   showPublishSuccess(publishedName, publishedLink);
 }
 
+function buildShareBlockHtml(link, idPrefix){
+  return `
+    <div class="link-box" style="justify-content:space-between;margin-bottom:14px;">
+      <span style="overflow-wrap:anywhere;">🔗 ${link}</span>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="icon-btn" id="${idPrefix}CopyBtn" title="Copiar link">📋</button>
+        <a class="icon-btn" href="https://wa.me/?text=${encodeURIComponent('¡Participá! ' + link)}" target="_blank" rel="noopener" title="Compartir por WhatsApp">💬</a>
+      </div>
+    </div>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(link)}" width="160" height="160" alt="QR" style="border-radius:10px;border:1px solid #e3f1f4;">
+    <div style="margin:8px 0 4px;">
+      <button class="add-btn" id="${idPrefix}DownloadQr" style="margin-top:0;">⬇️ Descargar QR</button>
+    </div>`;
+}
+function wireShareBlock(idPrefix, link, name){
+  document.getElementById(idPrefix+'CopyBtn').onclick = async ()=>{
+    const btn = document.getElementById(idPrefix+'CopyBtn');
+    try{ await navigator.clipboard.writeText(link); }catch(e){}
+    btn.textContent = '✓';
+    setTimeout(()=>{ btn.textContent = '📋'; }, 1200);
+  };
+  document.getElementById(idPrefix+'DownloadQr').onclick = ()=>{ downloadQr(link, name); };
+}
+
 function showPublishSuccess(name, link){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1396,29 +1421,31 @@ function showPublishSuccess(name, link){
       <div style="font-size:48px;">🎉</div>
       <h2 style="margin:8px 0 4px;">¡Listo, ya está publicada!</h2>
       <p class="sub" style="margin:0 0 14px;">"${escapeHtml(name)}" ya está funcionando. Compartila por donde quieras:</p>
-      <div class="link-box" style="justify-content:space-between;margin-bottom:14px;">
-        <span style="overflow-wrap:anywhere;">🔗 ${link}</span>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="icon-btn" id="publishCopyBtn" title="Copiar link">📋</button>
-          <a class="icon-btn" href="https://wa.me/?text=${encodeURIComponent('¡Participá! ' + link)}" target="_blank" rel="noopener" title="Compartir por WhatsApp">💬</a>
-        </div>
-      </div>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(link)}" width="160" height="160" alt="QR" style="border-radius:10px;border:1px solid #e3f1f4;">
-      <div style="margin:8px 0 18px;">
-        <button class="add-btn" id="publishDownloadQr" style="margin-top:0;">⬇️ Descargar QR</button>
-      </div>
-      <button class="cta" id="publishSuccessOk" style="width:100%;">Ver mis campañas</button>
+      ${buildShareBlockHtml(link, 'publish')}
+      <button class="cta" id="publishSuccessOk" style="width:100%;margin-top:14px;">Ver mis campañas</button>
     </div>
   `;
   document.body.appendChild(overlay);
   document.getElementById('publishSuccessOk').onclick = ()=> overlay.remove();
-  document.getElementById('publishCopyBtn').onclick = async ()=>{
-    const btn = document.getElementById('publishCopyBtn');
-    try{ await navigator.clipboard.writeText(link); }catch(e){}
-    btn.textContent = '✓';
-    setTimeout(()=>{ btn.textContent = '📋'; }, 1200);
-  };
-  document.getElementById('publishDownloadQr').onclick = ()=>{ downloadQr(link, name); };
+  wireShareBlock('publish', link, name);
+  launchConfetti();
+}
+
+function showSaveSuccess(name, link){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" style="text-align:center;">
+      <div style="font-size:48px;">✅</div>
+      <h2 style="margin:8px 0 4px;">¡Listo, se guardó!</h2>
+      <p class="sub" style="margin:0 0 14px;">Los cambios en "${escapeHtml(name)}" ya están activos — <b>el link y el código QR siguen siendo los mismos de siempre</b>, no hace falta volver a compartirlos si ya los mandaste.</p>
+      ${buildShareBlockHtml(link, 'save')}
+      <button class="cta" id="saveSuccessOk" style="width:100%;margin-top:14px;">Seguir editando</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('saveSuccessOk').onclick = ()=> overlay.remove();
+  wireShareBlock('save', link, name);
   launchConfetti();
 }
 
@@ -1439,8 +1466,8 @@ async function saveEdits(){
   }
   await saveCampaigns();
   formDirty = false;
-  const flash = document.getElementById('savedFlash');
-  if(flash){ flash.textContent = 'Guardado ✓ — el link sigue siendo el mismo'; setTimeout(()=>{ if(flash) flash.textContent=''; }, 2500); }
+  const link = location.origin + location.pathname + '#/play/' + d.slug;
+  showSaveSuccess(d.name, link);
 }
 
 let listFilter = 'all';
@@ -1529,7 +1556,7 @@ function renderList(){
                   ${isNames ? `<button class="menu-item" data-reset="${c.id}">↺ Reiniciar sorteo (${(c.namesPool||[]).length}/${c.namesList.length} sin salir)</button>` : ''}
                   <button class="menu-item" data-downloadcsv="${c.id}" ${c.participations.length===0?'disabled':''}>⬇️ Descargar datos (Excel)</button>
                   <button class="menu-item" data-resend="${c.id}" ${c.participations.length===0?'disabled':''}>📧 Reenviar por email</button>
-                  <button class="menu-item" data-copy="${editLink}">✏️ Copiar link para invitar a editar</button>
+                  <button class="menu-item" data-copy="${editLink}">✏️ Link para invitar a colaborar</button>
                   <button class="menu-item" data-duplicate="${c.id}">📄 Duplicar campaña</button>
                   <button class="menu-item danger" data-delete="${c.id}">🗑️ Borrar campaña</button>
                 </div>
@@ -1787,13 +1814,13 @@ function buildEmailBodyHtml(campaign, downloadUrl){
 <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;">
   <div style="background:linear-gradient(120deg,#002447,#00528F);padding:22px 26px;border-radius:14px 14px 0 0;">
     <div style="color:#ffffff;font-size:13px;letter-spacing:2px;text-transform:uppercase;opacity:.85;">UA Play</div>
-    <div style="color:#ffffff;font-size:22px;font-weight:800;margin-top:2px;">🎉 Resultados de tu promo</div>
+    <div style="color:#ffffff;font-size:22px;font-weight:800;margin-top:2px;">🎉 Resultados de tu concurso</div>
   </div>
   <div style="background:#ffffff;padding:26px;border:1px solid #e3f1f4;border-top:none;border-radius:0 0 14px 14px;">
     <h2 style="color:#002447;margin:0 0 6px;font-size:20px;">"${campaign.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}"</h2>
     <p style="color:#4a6b80;font-size:14px;margin:0 0 16px;">Finalizó con <b>${count}</b> participante${count===1?'':'s'}. Descargá el Excel con todo el detalle:</p>
     ${downloadButton}
-    <p style="color:#93aab8;font-size:12px;margin-top:24px;">Este mail se generó y se envió solo, sin que nadie tenga que hacer nada — es la magia de UA Play. 🚀</p>
+    <p style="color:#93aab8;font-size:12px;margin-top:24px;">Este email se generó y se envió de forma automática. Por favor, no responder a este mensaje.</p>
   </div>
 </div>`;
 }
@@ -1801,7 +1828,7 @@ function buildEmailBodyHtml(campaign, downloadUrl){
 function buildEmailBodyText(campaign, downloadUrl){
   const count = campaign.participations.length;
   const linkLine = downloadUrl ? `\n\nDescargar Excel: ${downloadUrl}` : '';
-  return `UA Play — Resultados de tu promo\n\n"${campaign.name}" finalizó con ${count} participante${count===1?'':'s'}.${linkLine}\n\nEste mail se generó y se envió solo, sin que nadie tenga que hacer nada.`;
+  return `UA Play — Resultados de tu concurso\n\n"${campaign.name}" finalizó con ${count} participante${count===1?'':'s'}.${linkLine}\n\nEste email se generó y se envió de forma automática. Por favor, no responder a este mensaje.`;
 }
 
 async function uploadCampaignExcel(campaign){

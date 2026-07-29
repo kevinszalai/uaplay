@@ -198,8 +198,9 @@
      3. Agregá una "Web App" (ícono </>) y copiá el objeto de config
      4. Habilitá "Firestore Database" (modo producción)
      5. Habilitá "Authentication" → método "Anónimo"
-     6. Pegá tu config acá abajo, reemplazando estos valores de ejemplo
-     7. En Firestore → Reglas, pegá esto (pide estar autenticado, aunque sea anónimo,
+     6. Habilitá "Storage" (para poder subir los Excel y generar el link de descarga)
+     7. Pegá tu config acá abajo, reemplazando estos valores de ejemplo
+     8. En Firestore → Reglas, pegá esto (pide estar autenticado, aunque sea anónimo,
         para frenar bots — no reemplaza un control real de permisos por usuario):
 
         rules_version = '2';
@@ -210,10 +211,24 @@
             }
           }
         }
+
+     9. En Storage → Reglas, pegá esto (cualquiera con el link puede DESCARGAR el
+        Excel, pero solo la app autenticada puede SUBIR archivos nuevos):
+
+        rules_version = '2';
+        service firebase.storage {
+          match /b/{bucket}/o {
+            match /{allPaths=**} {
+              allow read: if true;
+              allow write: if request.auth != null;
+            }
+          }
+        }
      ============================================================ -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   const firebaseConfig = {
@@ -243,6 +258,12 @@ const NOTIFY_DOMAIN = '@universal-assistance.com';
 const MAX_EXTRA_NOTIFY_EMAILS = 2;
 function isValidNotifyEmail(email){
   return (email||'').trim().toLowerCase().endsWith(NOTIFY_DOMAIN) && (email||'').includes('@');
+}
+function isValidCorporateLoginEmail(email){
+  const v = (email||'').trim().toLowerCase();
+  if(!v.endsWith(NOTIFY_DOMAIN)) return false;
+  const localPart = v.split('@')[0];
+  return /^[a-záéíóúñ]+(\.[a-záéíóúñ]+)+$/.test(localPart);
 }
 
 let audioCtx = null;
@@ -340,16 +361,19 @@ function renderIdentityGate(){
   document.getElementById('whoBox').innerHTML = '';
   app.innerHTML = `
     <div class="card" style="max-width:360px;margin:60px auto;">
-      <h2>👋 ¿Cómo te llamás?</h2>
-      <p class="sub">Solamente verás las acciones creadas bajo tu nombre.</p>
-      <input type="text" id="ideName" placeholder="Nombre y apellido">
+      <h2>👋 ¿Cuál es tu email?</h2>
+      <p class="sub">Solamente verás las acciones creadas bajo tu email. Formato nombre.apellido${NOTIFY_DOMAIN}.</p>
+      <input type="email" id="ideName" placeholder="nombre.apellido${NOTIFY_DOMAIN}">
+      <div id="ideError" style="color:var(--rosa);font-size:13px;font-weight:600;margin-top:6px;"></div>
       <button class="cta" id="ideGo" style="width:100%;margin-top:14px;">Entrar</button>
     </div>
   `;
   document.getElementById('ideName').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('ideGo').click(); });
   document.getElementById('ideGo').onclick = async ()=>{
-    const v = document.getElementById('ideName').value.trim();
-    if(!v) return;
+    const v = document.getElementById('ideName').value.trim().toLowerCase();
+    const errBox = document.getElementById('ideError');
+    if(!v){ errBox.textContent = 'Ingresá tu email.'; return; }
+    if(!isValidCorporateLoginEmail(v)){ errBox.textContent = `Tiene que tener el formato nombre.apellido${NOTIFY_DOMAIN}`; return; }
     const btn = document.getElementById('ideGo');
     btn.disabled = true; btn.textContent = 'Entrando...';
     await saveIdentity(v);
@@ -370,6 +394,7 @@ function renderWhoBox(){
 }
 
 let db = null;
+let storageRef = null;
 let firebaseReady = false;
 async function initFirebase(){
   if(firebaseReady) return true;
@@ -380,6 +405,7 @@ async function initFirebase(){
     }
     if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    try{ storageRef = firebase.storage(); }catch(e){ storageRef = null; /* Storage no habilitado, no es grave */ }
     await firebase.auth().signInAnonymously();
     firebaseReady = true;
     return true;
@@ -498,7 +524,7 @@ function slugify(name){
 function newDraft(){
   return {
     id: 'c_' + Date.now(), creatorId: me.creatorId, creatorName: me.name,
-    name:'', slug:'', gameType:'roulette', rouletteMode:'prizes',
+    name:'', slug:'', editToken:'', exportToken:'', gameType:'roulette', rouletteMode:'prizes',
     questions:[{id:'q1', label:'Nombre y apellido', type:'text', options:[], required:true}],
     prizes:[{id:'p1', name:'', probability:0, stock:null}],
     continueProbability: 100, namesList: [],
@@ -514,6 +540,12 @@ function route(){
   const hash = location.hash;
   if(hash.startsWith('#/play/')){ setChromeVisible(false); renderPublic(hash.replace('#/play/','')); return; }
   if(hash.startsWith('#/edit/')){ setChromeVisible(true); renderEditor(hash.replace('#/edit/','')); return; }
+  if(hash.startsWith('#/export/')){
+    setChromeVisible(false);
+    document.getElementById('whoBox').innerHTML = '';
+    renderExportView(hash.replace('#/export/',''));
+    return;
+  }
   if(hash === '#/admin'){
     setChromeVisible(true);
     if(me) renderWhoBox(); else document.getElementById('whoBox').innerHTML = '';
@@ -539,6 +571,33 @@ async function saveAdminPin(pin){
   const ok = await initFirebase();
   if(!ok) return;
   try{ await db.collection('config').doc('app').set({adminPin:pin}, {merge:true}); }catch(e){ showStorageWarning('⚠️ No se pudo guardar el PIN.'); }
+}
+
+async function renderExportView(exportToken){
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="public-wrap"><div class="spinner"></div><p class="sub">Cargando...</p></div>`;
+  const ok = await initFirebase();
+  let campaign = null;
+  if(ok){
+    try{
+      const snap = await db.collection('campaigns').where('exportToken','==',exportToken).limit(1).get();
+      if(!snap.empty) campaign = snap.docs[0].data();
+    }catch(e){}
+  }
+  if(!campaign){
+    app.innerHTML = `<div class="public-wrap"><h1 class="hero">Link inválido</h1><p class="sub">Este link no corresponde a ninguna campaña.</p></div>`;
+    return;
+  }
+  app.innerHTML = `
+    <div class="public-wrap">
+      <div class="card" style="max-width:400px;margin:60px auto;text-align:center;">
+        <h2>📊 ${escapeHtml(campaign.name)}</h2>
+        <p class="sub">${campaign.participations.length} participante${campaign.participations.length===1?'':'s'} registrados.</p>
+        <button class="cta" id="exportDownloadBtn" style="width:100%;">⬇️ Descargar Excel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('exportDownloadBtn').onclick = ()=> downloadCsv(campaign);
 }
 
 async function renderAdminGate(){
@@ -1307,6 +1366,7 @@ async function publishCampaign(){
   const d = currentDraft;
   d.slug = slugify(d.name);
   d.editToken = 'e_' + Math.random().toString(36).slice(2,10);
+  d.exportToken = 'x_' + Math.random().toString(36).slice(2,10) + Math.random().toString(36).slice(2,10);
   d.status = 'active';
   d.notifyEmails = normalizeNotifyEmails(d.notifyEmails);
   if(d.gameType==='roulette' && d.rouletteMode==='names'){
@@ -1535,6 +1595,7 @@ function renderList(){
       copy.name = original.name + ' (copia)';
       copy.slug = slugify(copy.name);
       copy.editToken = 'e_' + Math.random().toString(36).slice(2,10);
+      copy.exportToken = 'x_' + Math.random().toString(36).slice(2,10) + Math.random().toString(36).slice(2,10);
       copy.participations = [];
       copy.notified = false;
       copy.notifiedAt = null;
@@ -1714,9 +1775,10 @@ function buildParticipantsHtmlTable(campaign){
 </table>`;
 }
 
-function buildEmailBodyHtml(campaign){
+function buildEmailBodyHtml(campaign, downloadUrl){
   const count = campaign.participations.length;
-  const table = buildParticipantsHtmlTable(campaign);
+  const downloadButton = downloadUrl ? `
+    <a href="${downloadUrl}" style="display:inline-block;background:#ff436e;color:#ffffff;text-decoration:none;font-weight:800;padding:14px 28px;border-radius:999px;margin:6px 0;">📥 Descargar Excel</a>` : '';
   return `
 <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;">
   <div style="background:linear-gradient(120deg,#002447,#00528F);padding:22px 26px;border-radius:14px 14px 0 0;">
@@ -1725,16 +1787,32 @@ function buildEmailBodyHtml(campaign){
   </div>
   <div style="background:#ffffff;padding:26px;border:1px solid #e3f1f4;border-top:none;border-radius:0 0 14px 14px;">
     <h2 style="color:#002447;margin:0 0 6px;font-size:20px;">"${campaign.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}"</h2>
-    <p style="color:#4a6b80;font-size:14px;margin:0 0 20px;">Finalizó con <b>${count}</b> participante${count===1?'':'s'}. Acá está el detalle de quién jugó y qué ganó:</p>
-    ${table}
+    <p style="color:#4a6b80;font-size:14px;margin:0 0 16px;">Finalizó con <b>${count}</b> participante${count===1?'':'s'}. Descargá el Excel con todo el detalle:</p>
+    ${downloadButton}
     <p style="color:#93aab8;font-size:12px;margin-top:24px;">Este mail se generó y se envió solo, sin que nadie tenga que hacer nada — es la magia de UA Play. 🚀</p>
   </div>
 </div>`;
 }
 
-function buildEmailBodyText(campaign){
+function buildEmailBodyText(campaign, downloadUrl){
   const count = campaign.participations.length;
-  return `UA Play — Resultados de tu promo\n\n"${campaign.name}" finalizó con ${count} participante${count===1?'':'s'}.\n\nEl detalle completo de quién jugó y qué ganó está adjunto en el Excel.\n\nEste mail se generó y se envió solo, sin que nadie tenga que hacer nada.`;
+  const linkLine = downloadUrl ? `\n\nDescargar Excel: ${downloadUrl}` : '';
+  return `UA Play — Resultados de tu promo\n\n"${campaign.name}" finalizó con ${count} participante${count===1?'':'s'}.${linkLine}\n\nEste mail se generó y se envió solo, sin que nadie tenga que hacer nada.`;
+}
+
+async function uploadCampaignExcel(campaign){
+  const ok = await initFirebase();
+  if(!ok) return null;
+  try{
+    const blob = buildXlsxBlob(campaign);
+    const path = `exports/${campaign.id}-${Date.now()}.xlsx`;
+    const ref = storageRef.ref().child(path);
+    await ref.put(blob, {contentType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    return await ref.getDownloadURL();
+  }catch(e){
+    /* si Storage no está habilitado o falla, no pasa nada — el mail se manda igual, solo sin el botón de descarga */
+    return null;
+  }
 }
 
 function buildXlsxBlob(campaign){
@@ -1818,7 +1896,8 @@ async function sendParticipantsEmail(campaign){
 
   const cfg = await getEmailjsConfig();
   if(!cfg || !cfg.serviceId || !cfg.templateId || !cfg.publicKey) return;
-  const csv = buildEmailBodyHtml(campaign);
+  const downloadUrl = location.origin + location.pathname + '#/export/' + campaign.exportToken;
+  const csv = buildEmailBodyHtml(campaign, downloadUrl);
   const recipients = getFullNotifyList(campaign);
   try{
     let allOk = true;

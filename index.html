@@ -1080,7 +1080,7 @@ function renderAdmin(){
       <p class="step-hint">Solo se aceptan emails ${NOTIFY_DOMAIN}. Máximo ${MAX_EXTRA_NOTIFY_EMAILS} direcciones.</p>
       <div id="extraEmailsList"></div>
       <button class="add-btn" id="addNotifyEmail" ${d.notifyEmails.length>=MAX_EXTRA_NOTIFY_EMAILS?'disabled style="opacity:.4;"':''}>+ agregar email${d.notifyEmails.length>=MAX_EXTRA_NOTIFY_EMAILS?' (máximo alcanzado)':''}</button>
-      <p class="sub" style="margin:8px 0 0;font-size:12px;">Apenas se cumpla la fecha de fin, el sistema arma un archivo con todas las respuestas y lo manda solo, sin que tengas que hacer nada.</p>
+      <p class="sub" style="margin:8px 0 0;font-size:12px;">Cuando finalice la fecha de la campaña, vas a recibir un email automático con un link para descargar los datos de los inscriptos en Excel.</p>
     </div>
 
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">

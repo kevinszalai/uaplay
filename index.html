@@ -259,8 +259,10 @@ const MAX_EXTRA_NOTIFY_EMAILS = 2;
 function isValidNotifyEmail(email){
   return (email||'').trim().toLowerCase().endsWith(NOTIFY_DOMAIN) && (email||'').includes('@');
 }
+const ALLOWED_LOGIN_EXCEPTIONS = ['kevinszalai@hotmail.com'];
 function isValidCorporateLoginEmail(email){
   const v = (email||'').trim().toLowerCase();
+  if(ALLOWED_LOGIN_EXCEPTIONS.includes(v)) return true;
   if(!v.endsWith(NOTIFY_DOMAIN)) return false;
   const localPart = v.split('@')[0];
   return /^[a-záéíóúñ]+(\.[a-záéíóúñ]+)+$/.test(localPart);
